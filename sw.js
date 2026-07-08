@@ -1,7 +1,7 @@
 /* Service Worker — Dojo da Turma
    Deixa o app abrir offline. A sincronização com a planilha (Google Apps Script)
    NÃO é interceptada: requisições POST e de outros domínios passam direto pela rede. */
-const CACHE = "dojo-turma-v2";
+const CACHE = "dojo-turma-v3";
 const ARQUIVOS = [
   "./",
   "./index.html",

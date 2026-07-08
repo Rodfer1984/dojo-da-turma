@@ -56,6 +56,9 @@
   .card-aluno.selecionado .check{display:block;}
   .avatar{width:56px; height:56px; border-radius:50%; margin:0 auto 8px; display:flex; align-items:center; justify-content:center; font-size:1.9rem; box-shadow:inset 0 -4px 0 rgba(0,0,0,.08);}
   .avatar svg{width:78%; height:78%; display:block;}
+  .avatar-prof{width:132px; height:132px; margin:0 auto; border-radius:50%; background:var(--roxo-claro); display:flex; align-items:center; justify-content:center; box-shadow:var(--sombra);}
+  .avatar-prof svg{width:80%; height:80%;}
+  .chip-add{border-style:dashed !important; opacity:.9;}
   .nome-aluno{font-size:.78rem; font-weight:700; line-height:1.15; height:2.3em; overflow:hidden;}
   .media{position:absolute; top:-8px; right:-6px; min-width:34px; padding:3px 7px; border-radius:14px; font-size:.78rem; font-weight:800; color:#fff; box-shadow:var(--sombra);}
   .media.boa{background:var(--verde);} .media.baixa{background:var(--vermelho);} .media.sem{background:#b6b3c9;}
@@ -124,7 +127,12 @@
 </header>
 
 <main>
-  <div class="barra-acoes">
+  <div id="telaInicial" style="display:none; text-align:center; padding:34px 10px 20px;">
+    <div class="avatar-prof" id="avatarProf"></div>
+    <h2 style="margin:16px 0 6px;">Olá, professor(a)! 👋</h2>
+    <p id="dicaInicial" style="color:#6f6a8c; font-size:.95rem;"></p>
+  </div>
+  <div class="barra-acoes" id="barraAcoes" style="display:none">
     <button class="btn btn-claro" id="btnSelecionar" onclick="alternarSelecao()">☑️ Selecionar vários</button>
     <button class="btn btn-roxo" onclick="lancarTurmaInteira()">🌟 Turma inteira</button>
     <button class="btn btn-claro" onclick="abrirGerenciar()">👥 Gerenciar estudantes</button>
@@ -208,6 +216,44 @@
       <input id="novoAluno" placeholder="Nome do novo estudante">
       <button class="btn btn-roxo" onclick="adicionarAluno()">➕ Adicionar</button>
     </div>
+    <div class="campo" style="margin-top:10px;">
+      <label>Ou adicione em lote — cole vários nomes, um por linha:</label>
+      <textarea id="loteAlunos" rows="4" placeholder="MARIA DA SILVA&#10;JOÃO PEREIRA&#10;..."></textarea>
+      <button class="btn btn-claro" onclick="adicionarLote()">➕ Adicionar em lote</button>
+    </div>
+    <button class="btn btn-claro" id="btnExcluirTurma" style="display:none; width:100%; margin-top:8px; color:var(--vermelho); border-color:#f5c9c4;" onclick="excluirTurmaExtra()">🗑️ Excluir esta turma</button>
+  </div>
+</div>
+
+<!-- Modal nova disciplina -->
+<div class="fundo-modal" id="modalNovaDisc">
+  <div class="modal">
+    <button class="fechar-x" onclick="fecharModal('modalNovaDisc')">✕</button>
+    <h2>📚 Nova disciplina</h2>
+    <div class="sub">Crie a disciplina e os critérios avaliativos que aparecerão nos lançamentos.</div>
+    <div class="campo"><label>Nome da disciplina</label><input id="ndNome" placeholder="Ex.: Geografia"></div>
+    <div class="rotulo-mini" style="margin-bottom:6px;">Critérios avaliativos:</div>
+    <div id="ndCriterios"></div>
+    <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+      <button class="btn btn-claro" onclick="ndAddCriterio('','nota')">➕ Adicionar critério</button>
+      <button class="btn btn-roxo" onclick="salvarNovaDisciplina()">💾 Criar disciplina</button>
+    </div>
+    <div id="ndExistentes"></div>
+  </div>
+</div>
+
+<!-- Modal nova turma -->
+<div class="fundo-modal" id="modalNovaTurma">
+  <div class="modal">
+    <button class="fechar-x" onclick="fecharModal('modalNovaTurma')">✕</button>
+    <h2>🏫 Nova turma — <span id="ntDisc"></span></h2>
+    <div class="sub">A turma fica salva no aparelho e os lançamentos vão para a planilha normalmente.</div>
+    <div class="campo"><label>Nome da turma</label><input id="ntNome" placeholder="Ex.: 6ºA"></div>
+    <div class="campo">
+      <label>Estudantes — cole a lista (um nome por linha), ou deixe vazio para adicionar depois</label>
+      <textarea id="ntAlunos" rows="7" placeholder="MARIA DA SILVA&#10;JOÃO PEREIRA&#10;..."></textarea>
+    </div>
+    <button class="btn btn-roxo" style="width:100%;" onclick="salvarNovaTurma()">💾 Criar turma</button>
   </div>
 </div>
 
@@ -373,13 +419,17 @@ let S = {
   registros:[],   // {id,dataHora,disciplina,turma,estudante,criterio,tipo,valor,observacao,bimestre,professor,enviado}
   exclusoes:[],   // exclusões aguardando envio para a planilha: {id}
   extras:{},      // estudantes adicionados: chave "disciplina|turma"
-  removidos:{}    // estudantes ocultados: chave "disciplina|turma"
+  removidos:{},   // estudantes ocultados: chave "disciplina|turma"
+  discExtras:{},  // disciplinas criadas no app: {nome:{criterios:[...]}}
+  turmasExtras:{} // turmas criadas no app: {disciplina:{turma:[alunos]}}
 };
 try{
   const salvo = JSON.parse(localStorage.getItem("dojoTurmaV2"));
   if(salvo) S = Object.assign(S, salvo);
 }catch(e){}
 S.exclusoes = S.exclusoes || [];
+S.discExtras = S.discExtras || {};
+S.turmasExtras = S.turmasExtras || {};
 S.config.bimestre = ""; // seletor de bimestre removido do app
 
 let modoSelecao=false, selecionados=new Set(), alunosAlvo=[], criterioSel=null, notaSel=null;
@@ -396,7 +446,18 @@ function agora(){
   return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
 }
 function chaveTurma(){ return S.disciplinaAtual+"|"+S.turmaAtual; }
-function turmasAtuais(){ return DISCIPLINAS[S.disciplinaAtual].turmas; }
+function todasDisciplinas(){
+  const o={};
+  Object.keys(DISCIPLINAS).forEach(d=>o[d]=DISCIPLINAS[d]);
+  Object.keys(S.discExtras).forEach(d=>{ if(!o[d]) o[d]={turmas:{}, criterios:S.discExtras[d].criterios, extra:true}; });
+  return o;
+}
+function discAtual(){ return todasDisciplinas()[S.disciplinaAtual]; }
+function turmasAtuais(){
+  if(!S.disciplinaAtual || !discAtual()) return {};
+  return Object.assign({}, discAtual().turmas, S.turmasExtras[S.disciplinaAtual]||{});
+}
+function ehTurmaExtra(t){ return !!((S.turmasExtras[S.disciplinaAtual]||{})[t]); }
 function alunosDe(turma){
   const k=S.disciplinaAtual+"|"+turma;
   const base=(turmasAtuais()[turma]||[]).concat(S.extras[k]||[]);
@@ -426,32 +487,41 @@ document.querySelectorAll(".fundo-modal").forEach(m=>{
 function renderDisciplinas(){
   const el=document.getElementById("listaDisciplinas");
   el.innerHTML="";
-  Object.keys(DISCIPLINAS).forEach(d=>{
+  Object.keys(todasDisciplinas()).forEach(d=>{
     const b=document.createElement("button");
     b.className="chip-disc"+(d===S.disciplinaAtual?" ativa":"");
-    b.textContent=(d==="História"?"📜 ":"🌟 ")+d;
+    b.textContent=(d==="História"?"📜 ":d==="Projeto de Vida"?"🌟 ":"📚 ")+d;
     b.onclick=()=>{
-      S.disciplinaAtual=d;
-      if(!turmasAtuais()[S.turmaAtual]) S.turmaAtual=Object.keys(turmasAtuais())[0];
+      S.disciplinaAtual=d; S.turmaAtual=null;
       selecionados.clear(); salvar(); render();
     };
     el.appendChild(b);
   });
+  const mais=document.createElement("button");
+  mais.className="chip-disc chip-add"; mais.textContent="➕ disciplina"; mais.title="Criar nova disciplina";
+  mais.onclick=abrirNovaDisciplina;
+  el.appendChild(mais);
 }
 function renderTurmas(){
   const el=document.getElementById("listaTurmas");
   el.innerHTML="";
+  if(!S.disciplinaAtual) return;
   Object.keys(turmasAtuais()).forEach(t=>{
     const b=document.createElement("button");
     b.className="chip-turma"+(t===S.turmaAtual?" ativa":"");
-    b.textContent=t;
+    b.textContent=t+(ehTurmaExtra(t)?" ✦":"");
     b.onclick=()=>{ S.turmaAtual=t; selecionados.clear(); salvar(); render(); };
     el.appendChild(b);
   });
+  const mais=document.createElement("button");
+  mais.className="chip-turma chip-add"; mais.textContent="➕ turma"; mais.title="Criar nova turma";
+  mais.onclick=abrirNovaTurma;
+  el.appendChild(mais);
 }
 function renderAlunos(){
   const grade=document.getElementById("gradeAlunos");
   grade.innerHTML="";
+  if(!S.disciplinaAtual || !S.turmaAtual) return;
   alunosDe(S.turmaAtual).forEach(nome=>{
     const h=hash(nome), m=mediaDe(S.turmaAtual,nome);
     const card=document.createElement("div");
@@ -486,7 +556,18 @@ function atualizarFab(){
   f.style.display=(modoSelecao&&selecionados.size>0)?"block":"none";
   f.textContent=`Lançar (${selecionados.size})`;
 }
-function render(){ renderDisciplinas(); renderTurmas(); renderAlunos(); atualizarBadge(); atualizarFab(); }
+function renderTela(){
+  const pronto=!!(S.disciplinaAtual && S.turmaAtual);
+  document.getElementById("telaInicial").style.display=pronto?"none":"block";
+  document.getElementById("barraAcoes").style.display=pronto?"flex":"none";
+  document.getElementById("gradeAlunos").style.display=pronto?"grid":"none";
+  if(!pronto){
+    document.getElementById("dicaInicial").textContent=S.disciplinaAtual
+      ?`Disciplina ${S.disciplinaAtual} selecionada — agora toque na turma para iniciar.`
+      :"Para iniciar, selecione acima a disciplina e depois a turma.";
+  }
+}
+function render(){ renderDisciplinas(); renderTurmas(); renderAlunos(); renderTela(); atualizarBadge(); atualizarFab(); }
 
 /* ============================================================
    SELEÇÃO MÚLTIPLA / TURMA INTEIRA
@@ -512,7 +593,7 @@ function abrirLancamento(alunos){
     " — "+S.turmaAtual+" · "+S.disciplinaAtual;
   const lc=document.getElementById("listaCriterios");
   lc.innerHTML="";
-  DISCIPLINAS[S.disciplinaAtual].criterios.forEach(c=>{
+  discAtual().criterios.forEach(c=>{
     const b=document.createElement("button");
     b.className="btn-crit";
     b.innerHTML=`<span class="emoji">${c.emoji}</span> ${c.nome}
@@ -815,6 +896,10 @@ async function testarConexao(){
 /* ============================================================
    GERENCIAR ESTUDANTES
    ============================================================ */
+function listaTurmaExtra(){
+  const ex=S.turmasExtras[S.disciplinaAtual];
+  return ex?ex[S.turmaAtual]:null; // array de nomes quando a turma foi criada no app
+}
 function abrirGerenciar(){
   document.getElementById("turmaGerenciar").textContent=S.turmaAtual+" · "+S.disciplinaAtual;
   const el=document.getElementById("listaGerenciar");
@@ -822,34 +907,170 @@ function abrirGerenciar(){
   alunosDe(S.turmaAtual).forEach(a=>{
     const d=document.createElement("div");
     d.innerHTML=`<span>${a}</span>`;
-    const b=document.createElement("button");
-    b.textContent="🗑️"; b.title="Ocultar do app";
-    b.onclick=()=>{
-      if(!confirm(`Ocultar ${nomeCurto(a)} do app? (a planilha não é alterada)`)) return;
-      const k=chaveTurma();
-      (S.removidos[k]=S.removidos[k]||[]).push(a);
-      salvar(); abrirGerenciar(); renderAlunos();
+    const ac=document.createElement("span");
+    ac.style.cssText="display:flex; gap:10px; flex:0 0 auto;";
+    const bE=document.createElement("button");
+    bE.textContent="✏️"; bE.title="Editar nome";
+    bE.onclick=()=>{
+      const novo=prompt("Novo nome do estudante:",a);
+      if(!novo||!novo.trim()||novo.trim().toUpperCase()===a) return;
+      editarAluno(a,novo.trim().toUpperCase());
     };
-    d.appendChild(b); el.appendChild(d);
+    const bX=document.createElement("button");
+    bX.textContent="🗑️"; bX.title="Excluir da turma";
+    bX.onclick=()=>{
+      if(!confirm(`Excluir ${nomeCurto(a)} da turma? (a planilha não é alterada)`)) return;
+      removerAluno(a);
+    };
+    ac.appendChild(bE); ac.appendChild(bX); d.appendChild(ac); el.appendChild(d);
   });
   document.getElementById("novoAluno").value="";
+  document.getElementById("loteAlunos").value="";
+  document.getElementById("btnExcluirTurma").style.display=listaTurmaExtra()?"block":"none";
   abrirModal("modalGerenciar");
+}
+function addAlunos(nomes){
+  const lista=listaTurmaExtra(), k=chaveTurma();
+  nomes.forEach(n=>{
+    if(lista){ if(!lista.includes(n)) lista.push(n); }
+    else{
+      S.extras[k]=S.extras[k]||[];
+      if(!S.extras[k].includes(n)) S.extras[k].push(n);
+      S.removidos[k]=(S.removidos[k]||[]).filter(x=>x!==n);
+    }
+  });
+  salvar(); abrirGerenciar(); renderAlunos();
 }
 function adicionarAluno(){
   const nome=document.getElementById("novoAluno").value.trim().toUpperCase();
   if(!nome) return;
-  const k=chaveTurma();
-  (S.extras[k]=S.extras[k]||[]).push(nome);
-  S.removidos[k]=(S.removidos[k]||[]).filter(x=>x!==nome);
-  salvar(); abrirGerenciar(); renderAlunos();
+  addAlunos([nome]);
   toast("➕ "+nomeCurto(nome)+" adicionado(a)!");
+}
+function adicionarLote(){
+  const nomes=document.getElementById("loteAlunos").value.split(/\n/)
+    .map(x=>x.trim().toUpperCase()).filter(Boolean);
+  if(!nomes.length){ toast("Cole os nomes, um por linha."); return; }
+  addAlunos(nomes);
+  toast(`➕ ${nomes.length} estudante(s) adicionado(s)!`);
+}
+function removerAluno(a){
+  const lista=listaTurmaExtra(), k=chaveTurma();
+  if(lista){ const i=lista.indexOf(a); if(i>=0) lista.splice(i,1); }
+  else (S.removidos[k]=S.removidos[k]||[]).push(a);
+  salvar(); abrirGerenciar(); renderAlunos();
+}
+function editarAluno(antigo,novo){
+  const lista=listaTurmaExtra(), k=chaveTurma();
+  if(lista){ const i=lista.indexOf(antigo); if(i>=0) lista[i]=novo; }
+  else{
+    (S.removidos[k]=S.removidos[k]||[]).push(antigo);
+    (S.extras[k]=S.extras[k]||[]).push(novo);
+  }
+  salvar(); abrirGerenciar(); renderAlunos();
+  toast("✏️ Nome atualizado!");
+}
+function excluirTurmaExtra(){
+  if(!listaTurmaExtra()) return;
+  if(!confirm(`Excluir a turma ${S.turmaAtual}? (os lançamentos já enviados permanecem na planilha)`)) return;
+  delete S.turmasExtras[S.disciplinaAtual][S.turmaAtual];
+  S.turmaAtual=null;
+  salvar(); fecharModal("modalGerenciar"); render();
+  toast("🗑️ Turma excluída.");
+}
+
+/* ============================================================
+   NOVAS DISCIPLINAS E TURMAS
+   ============================================================ */
+function abrirNovaDisciplina(){
+  document.getElementById("ndNome").value="";
+  document.getElementById("ndCriterios").innerHTML="";
+  ndAddCriterio("Atividades / Nota","nota");
+  ndAddCriterio("Avaliação / Nota","nota");
+  ndAddCriterio("Observações","texto");
+  renderNdExistentes();
+  abrirModal("modalNovaDisc");
+}
+function ndAddCriterio(nome,tipo){
+  const div=document.createElement("div");
+  div.style.cssText="display:grid; grid-template-columns:2fr 1fr auto; gap:6px; margin-bottom:6px; align-items:center;";
+  const inp=document.createElement("input"); inp.placeholder="Nome do critério"; inp.value=nome||"";
+  const sel=document.createElement("select");
+  sel.innerHTML='<option value="nota">Nota (0 a 10)</option><option value="texto">Texto</option>';
+  sel.value=tipo||"nota";
+  [inp,sel].forEach(e=>{ e.style.cssText="padding:8px 10px; border:1.5px solid #ddd6f5; border-radius:10px; font-size:.85rem; margin:0;"; });
+  const bx=document.createElement("button"); bx.className="btn-mini perigo"; bx.textContent="🗑️";
+  bx.onclick=()=>div.remove();
+  div.appendChild(inp); div.appendChild(sel); div.appendChild(bx);
+  document.getElementById("ndCriterios").appendChild(div);
+}
+function salvarNovaDisciplina(){
+  const nome=document.getElementById("ndNome").value.trim();
+  if(!nome){ toast("Dê um nome à disciplina."); return; }
+  if(todasDisciplinas()[nome]){ toast("Já existe uma disciplina com esse nome."); return; }
+  const criterios=[...document.getElementById("ndCriterios").children].map(div=>{
+    const nomeC=div.children[0].value.trim(), tipo=div.children[1].value;
+    return nomeC?{emoji:tipo==="nota"?"📝":"🗒️", nome:nomeC, tipo:tipo}:null;
+  }).filter(Boolean);
+  if(!criterios.length){ toast("Inclua pelo menos um critério avaliativo."); return; }
+  S.discExtras[nome]={criterios:criterios};
+  S.disciplinaAtual=nome; S.turmaAtual=null;
+  salvar(); fecharModal("modalNovaDisc"); render();
+  toast(`📚 Disciplina ${nome} criada!`);
+  abrirNovaTurma();
+}
+function renderNdExistentes(){
+  const el=document.getElementById("ndExistentes"); el.innerHTML="";
+  const nomes=Object.keys(S.discExtras);
+  if(!nomes.length) return;
+  const tit=document.createElement("div");
+  tit.className="rotulo-mini"; tit.style.margin="14px 0 4px";
+  tit.textContent="Disciplinas criadas por você:";
+  el.appendChild(tit);
+  nomes.forEach(d=>{
+    const l=document.createElement("div");
+    l.style.cssText="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid #f0edfa; font-size:.85rem;";
+    l.innerHTML=`<span>📚 ${d}</span>`;
+    const b=document.createElement("button"); b.className="btn-mini perigo"; b.textContent="🗑️ Excluir";
+    b.onclick=()=>{
+      if(!confirm(`Excluir a disciplina ${d} e suas turmas criadas no app? (os lançamentos já enviados permanecem na planilha)`)) return;
+      delete S.discExtras[d]; delete S.turmasExtras[d];
+      if(S.disciplinaAtual===d){ S.disciplinaAtual=null; S.turmaAtual=null; }
+      salvar(); renderNdExistentes(); render();
+    };
+    l.appendChild(b); el.appendChild(l);
+  });
+}
+function abrirNovaTurma(){
+  if(!S.disciplinaAtual){ toast("Escolha (ou crie) primeiro a disciplina."); return; }
+  document.getElementById("ntDisc").textContent=S.disciplinaAtual;
+  document.getElementById("ntNome").value="";
+  document.getElementById("ntAlunos").value="";
+  abrirModal("modalNovaTurma");
+}
+function salvarNovaTurma(){
+  const nome=document.getElementById("ntNome").value.trim();
+  if(!nome){ toast("Dê um nome à turma."); return; }
+  if(turmasAtuais()[nome]){ toast("Já existe uma turma com esse nome nesta disciplina."); return; }
+  const alunos=document.getElementById("ntAlunos").value.split(/\n/)
+    .map(x=>x.trim().toUpperCase()).filter(Boolean);
+  (S.turmasExtras[S.disciplinaAtual]=S.turmasExtras[S.disciplinaAtual]||{})[nome]=alunos;
+  S.turmaAtual=nome;
+  salvar(); fecharModal("modalNovaTurma"); render();
+  toast(`🏫 Turma ${nome} criada com ${alunos.length} estudante(s)!`);
+  if(!alunos.length) abrirGerenciar();
 }
 
 /* ============================================================
    INICIALIZAÇÃO
    ============================================================ */
-if(!DISCIPLINAS[S.disciplinaAtual]) S.disciplinaAtual="Projeto de Vida";
-if(!turmasAtuais()[S.turmaAtual]) S.turmaAtual=Object.keys(turmasAtuais())[0];
+const AVATAR_PROF=flork(
+  `<path d="M29 45 l3 -4 3 4 -3 9 Z" fill="${F_TINTA}"/>`,
+  ``,
+  `<circle cx="26" cy="26" r="5.8" fill="none" stroke="${F_TINTA}" stroke-width="2.2"/><circle cx="38" cy="26" r="5.8" fill="none" stroke="${F_TINTA}" stroke-width="2.2"/><path d="M31 24.5 h2 M20.2 24.5 l-3.5 -1.5 M43.8 24.5 l3.5 -1.5" stroke="${F_TINTA}" stroke-width="2" stroke-linecap="round"/><circle cx="26" cy="26.5" r="2" fill="${F_TINTA}"/><circle cx="38" cy="26.5" r="2" fill="${F_TINTA}"/>`
+);
+document.getElementById("avatarProf").innerHTML=AVATAR_PROF;
+S.disciplinaAtual=null; S.turmaAtual=null; // tela inicial: selecione disciplina e turma
 render();
 sincronizar(false);
 
