@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dojo da Turma — Diário de Classe</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6c4fd8">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Dojo da Turma">
+<style>
+  :root{
+    --roxo:#6c4fd8; --roxo-escuro:#5238b0; --roxo-claro:#efeafe;
+    --verde:#2eb872; --vermelho:#e74c3c; --amarelo:#f5b942; --azul:#2f80ed;
+    --cinza:#f4f4f8; --texto:#2d2a3e; --branco:#fff;
+    --sombra:0 2px 10px rgba(40,20,90,.12);
+  }
+  *{box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',system-ui,sans-serif;}
+  body{background:var(--cinza); color:var(--texto); min-height:100vh;}
+
+  header{background:linear-gradient(135deg,var(--roxo),var(--roxo-escuro)); color:#fff; padding:14px 16px 10px; position:sticky; top:0; z-index:50; box-shadow:var(--sombra);}
+  .topo{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .logo{font-size:1.3rem; font-weight:800; letter-spacing:.3px; display:flex; align-items:center; gap:8px;}
+  .logo span{font-size:1.55rem;}
+  .topo .esticar{flex:1;}
+  .badge-sync{background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); border-radius:20px; padding:5px 12px; font-size:.8rem; cursor:pointer; color:#fff;}
+  .badge-sync.pendente{background:var(--amarelo); border-color:var(--amarelo); color:#4a3200; font-weight:700;}
+  .btn-icone{background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); color:#fff; border-radius:10px; padding:6px 11px; font-size:1rem; cursor:pointer;}
+  .btn-icone:hover{background:rgba(255,255,255,.3);}
+
+  .disciplinas{display:flex; gap:8px; padding:12px 2px 0;}
+  .chip-disc{flex:0 0 auto; background:rgba(255,255,255,.12); border:1.5px solid rgba(255,255,255,.4); color:#fff; padding:8px 18px; border-radius:12px; cursor:pointer; font-weight:800; font-size:.92rem; transition:.15s;}
+  .chip-disc.ativa{background:#fff; color:var(--roxo-escuro); border-color:#fff;}
+  .turmas{display:flex; gap:8px; overflow-x:auto; padding:10px 2px 4px; scrollbar-width:thin;}
+  .chip-turma{flex:0 0 auto; background:rgba(255,255,255,.15); border:1.5px solid rgba(255,255,255,.35); color:#fff; padding:7px 16px; border-radius:22px; cursor:pointer; font-weight:700; font-size:.9rem; transition:.15s;}
+  .chip-turma.ativa{background:#fff; color:var(--roxo-escuro); border-color:#fff;}
+
+  main{max-width:1100px; margin:0 auto; padding:16px 14px 90px;}
+  .barra-acoes{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+  .barra-acoes select{padding:8px 10px; border-radius:10px; border:1.5px solid #ddd6f5; background:#fff; font-size:.9rem; color:var(--texto);}
+  .btn{border:none; border-radius:10px; padding:9px 15px; font-size:.9rem; font-weight:700; cursor:pointer; transition:.15s;}
+  .btn-roxo{background:var(--roxo); color:#fff;} .btn-roxo:hover{background:var(--roxo-escuro);}
+  .btn-claro{background:#fff; color:var(--roxo-escuro); border:1.5px solid #ddd6f5;} .btn-claro:hover{background:var(--roxo-claro);}
+  .btn-claro.ativo{background:var(--roxo-claro); border-color:var(--roxo);}
+
+  .grade{display:grid; grid-template-columns:repeat(auto-fill,minmax(105px,1fr)); gap:12px;}
+  .card-aluno{background:#fff; border-radius:16px; padding:14px 6px 12px; text-align:center; cursor:pointer; box-shadow:var(--sombra); border:2.5px solid transparent; transition:.15s; position:relative; user-select:none;}
+  .card-aluno:hover{transform:translateY(-3px); border-color:var(--roxo);}
+  .card-aluno.selecionado{border-color:var(--verde); background:#effaf4;}
+  .card-aluno .check{position:absolute; top:6px; left:8px; font-size:1rem; display:none;}
+  .card-aluno.selecionado .check{display:block;}
+  .avatar{width:56px; height:56px; border-radius:50%; margin:0 auto 8px; display:flex; align-items:center; justify-content:center; font-size:1.9rem; box-shadow:inset 0 -4px 0 rgba(0,0,0,.08);}
+  .nome-aluno{font-size:.78rem; font-weight:700; line-height:1.15; height:2.3em; overflow:hidden;}
+  .media{position:absolute; top:-8px; right:-6px; min-width:34px; padding:3px 7px; border-radius:14px; font-size:.78rem; font-weight:800; color:#fff; box-shadow:var(--sombra);}
+  .media.boa{background:var(--verde);} .media.baixa{background:var(--vermelho);} .media.sem{background:#b6b3c9;}
+
+  .fab-selecao{position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--verde); color:#fff; border:none; border-radius:30px; padding:14px 26px; font-size:1rem; font-weight:800; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.25); display:none; z-index:60;}
+
+  /* ---------- modais ---------- */
+  .fundo-modal{position:fixed; inset:0; background:rgba(30,20,60,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:14px;}
+  .fundo-modal.aberto{display:flex;}
+  .modal{background:#fff; border-radius:18px; max-width:600px; width:100%; max-height:88vh; overflow-y:auto; padding:20px;}
+  .modal h2{font-size:1.1rem; margin-bottom:4px; display:flex; align-items:center; gap:8px;}
+  .modal .sub{color:#8a86a3; font-size:.85rem; margin-bottom:14px;}
+  .fechar-x{float:right; background:none; border:none; font-size:1.4rem; cursor:pointer; color:#8a86a3;}
+
+  .btn-crit{display:flex; align-items:center; gap:10px; width:100%; background:var(--cinza); border:2px solid transparent; border-radius:12px; padding:11px 13px; margin-bottom:7px; cursor:pointer; font-size:.9rem; font-weight:600; text-align:left; transition:.12s;}
+  .btn-crit:hover{border-color:var(--roxo); background:var(--roxo-claro);}
+  .btn-crit.sel{border-color:var(--roxo); background:var(--roxo-claro);}
+  .btn-crit .emoji{font-size:1.25rem;}
+  .btn-crit .tipo{margin-left:auto; font-size:.7rem; font-weight:800; padding:3px 8px; border-radius:8px;}
+  .tipo.nota{background:#e0ecff; color:var(--azul);} .tipo.texto{background:#fdf3d7; color:#8a6510;}
+
+  .painel-lanc{border-top:2px dashed #e3ddf7; margin-top:12px; padding-top:12px;}
+  .chips-nota{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 10px;}
+  .chip-nota{border:1.5px solid #ddd6f5; background:#fff; border-radius:10px; padding:8px 0; width:44px; text-align:center; font-weight:800; cursor:pointer; font-size:.95rem;}
+  .chip-nota:hover,.chip-nota.sel{background:var(--roxo); color:#fff; border-color:var(--roxo);}
+  .chips-obs{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 10px;}
+  .chip-obs{border:1.5px solid #ddd6f5; background:#fff; border-radius:16px; padding:7px 12px; font-size:.8rem; font-weight:600; cursor:pointer;}
+  .chip-obs:hover,.chip-obs.sel{background:var(--amarelo); border-color:var(--amarelo); color:#4a3200;}
+  .painel-lanc input[type=number],.painel-lanc textarea,.campo input,.campo select,.campo textarea{width:100%; padding:9px 11px; border:1.5px solid #ddd6f5; border-radius:10px; font-size:.9rem; margin-bottom:8px;}
+  .btn-mini{background:#fff; border:1.5px solid #ddd6f5; border-radius:8px; cursor:pointer; font-size:.72rem; font-weight:700; padding:4px 9px; color:var(--roxo-escuro); white-space:nowrap;}
+  .btn-mini:hover{background:var(--roxo-claro);}
+  .btn-mini.perigo{color:var(--vermelho); border-color:#f5c9c4;}
+  .btn-mini.perigo:hover{background:#fdf0ee;}
+  .campo{margin-bottom:10px;}
+  .campo label{display:block; font-size:.8rem; font-weight:700; margin-bottom:4px; color:#5b5675;}
+  .rotulo-mini{font-size:.78rem; font-weight:700; color:#5b5675;}
+
+  .item-hist{display:flex; gap:10px; align-items:flex-start; padding:10px 4px; border-bottom:1px solid #f0edfa; font-size:.85rem;}
+  .item-hist .quando{color:#8a86a3; font-size:.75rem;}
+  .tag-status{margin-left:auto; flex:0 0 auto; font-size:.72rem; font-weight:700; padding:3px 8px; border-radius:10px;}
+  .tag-status.ok{background:#e2f7ec; color:#1c7a4b;}
+  .tag-status.pend{background:#fdf3d7; color:#8a6510;}
+  .aviso{background:var(--roxo-claro); border-left:4px solid var(--roxo); padding:10px 12px; border-radius:8px; font-size:.83rem; margin-bottom:12px; line-height:1.45;}
+  .aviso code{background:#fff; padding:1px 5px; border-radius:5px; font-size:.78rem; word-break:break-all;}
+  .msg-status{font-size:.83rem; font-weight:700; margin-top:6px; min-height:1.2em;}
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--texto); color:#fff; padding:11px 20px; border-radius:12px; font-size:.9rem; z-index:200; box-shadow:var(--sombra); opacity:0; transition:.25s; pointer-events:none; max-width:92vw; text-align:center;}
+  .toast.mostrar{opacity:1;}
+  .lista-gerenciar{max-height:300px; overflow-y:auto; margin-bottom:10px;}
+  .lista-gerenciar div{display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid #f0edfa; font-size:.85rem;}
+  .lista-gerenciar button{background:none; border:none; color:var(--vermelho); cursor:pointer; font-size:.95rem;}
+  .linha-2{display:grid; grid-template-columns:2fr 1fr; gap:8px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topo">
+    <div class="logo"><span>🏫</span> Dojo da Turma</div>
+    <div class="esticar"></div>
+    <button class="badge-sync" id="badgeSync" onclick="abrirModal('modalHistorico'); renderHistorico()">✅ sincronizado</button>
+    <button class="btn-icone" title="Histórico" onclick="abrirModal('modalHistorico'); renderHistorico()">📋</button>
+    <button class="btn-icone" title="Configurações" onclick="abrirConfig()">⚙️</button>
+  </div>
+  <div class="disciplinas" id="listaDisciplinas"></div>
+  <div class="turmas" id="listaTurmas"></div>
+</header>
+
+<main>
+  <div class="barra-acoes">
+    <button class="btn btn-claro" id="btnSelecionar" onclick="alternarSelecao()">☑️ Selecionar vários</button>
+    <button class="btn btn-roxo" onclick="lancarTurmaInteira()">🌟 Turma inteira</button>
+    <button class="btn btn-claro" onclick="abrirGerenciar()">👥 Gerenciar estudantes</button>
+  </div>
+  <div class="grade" id="gradeAlunos"></div>
+</main>
+
+<button class="fab-selecao" id="fabSelecao" onclick="lancarSelecionados()">Lançar (0)</button>
+
+<!-- Modal de lançamento (critérios da planilha) -->
+<div class="fundo-modal" id="modalLanc">
+  <div class="modal">
+    <button class="fechar-x" onclick="fecharModal('modalLanc')">✕</button>
+    <h2 id="tituloLanc">Estudante</h2>
+    <div class="sub" id="subLanc"></div>
+    <div class="rotulo-mini" style="margin-bottom:8px;">1️⃣ Escolha o critério avaliativo (os mesmos da planilha):</div>
+    <div id="listaCriterios"></div>
+    <div class="painel-lanc" id="painelLanc" style="display:none;">
+      <div class="rotulo-mini" id="rotuloPasso2"></div>
+      <div id="areaNota" style="display:none;">
+        <div class="chips-nota" id="chipsNota"></div>
+        <input type="number" id="notaLivre" min="0" max="10" step="0.5" placeholder="Ou digite a nota (0 a 10, aceita meio ponto)">
+      </div>
+      <div id="areaTexto" style="display:none;">
+        <div class="chips-obs" id="chipsObs"></div>
+      </div>
+      <textarea id="lancObs" rows="2" placeholder="Comentário adicional (opcional — vai para a planilha)"></textarea>
+      <button class="btn btn-roxo" style="width:100%;" onclick="confirmarLancamento()">✔️ Registrar e enviar para a planilha</button>
+    </div>
+    <div id="secaoUltimos" style="border-top:2px dashed #e3ddf7; margin-top:12px; padding-top:10px; display:none;">
+      <div class="rotulo-mini" style="margin-bottom:6px;">🕓 Últimos lançamentos deste estudante — corrija ou exclua se precisar:</div>
+      <div id="listaUltimos"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal histórico -->
+<div class="fundo-modal" id="modalHistorico">
+  <div class="modal">
+    <button class="fechar-x" onclick="fecharModal('modalHistorico')">✕</button>
+    <h2>📋 Histórico de lançamentos</h2>
+    <div class="sub" id="resumoHist"></div>
+    <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+      <button class="btn btn-roxo" onclick="sincronizar(true)">🔄 Reenviar pendentes</button>
+      <button class="btn btn-claro" onclick="exportarCSV()">⬇️ Exportar CSV</button>
+    </div>
+    <div id="listaHistorico"></div>
+  </div>
+</div>
+
+<!-- Modal configurações -->
+<div class="fundo-modal" id="modalConfig">
+  <div class="modal">
+    <button class="fechar-x" onclick="fecharModal('modalConfig')">✕</button>
+    <h2>⚙️ Configurações</h2>
+    <div class="aviso">
+      <strong>Conexão com a planilha Google:</strong> siga o arquivo <code>INSTRUCOES.md</code> (na mesma pasta deste app) para instalar o script na planilha e cole abaixo a URL gerada (termina em <code>/exec</code>). Cada lançamento é gravado na aba <strong>Registros</strong> e também <strong>na célula certa da aba da turma</strong> (linha do estudante × coluna do critério).
+    </div>
+    <div class="campo">
+      <label>URL do script da planilha (Apps Script)</label>
+      <input id="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec">
+    </div>
+    <div class="campo">
+      <label>Nome do professor(a) — aparece em cada registro</label>
+      <input id="cfgProfessor" placeholder="Ex.: Prof. Rodrigo">
+    </div>
+    <button class="btn btn-roxo" onclick="salvarConfig()">💾 Salvar</button>
+    <button class="btn btn-claro" onclick="testarConexao()">🔌 Testar conexão</button>
+    <div class="msg-status" id="msgTeste"></div>
+  </div>
+</div>
+
+<!-- Modal gerenciar estudantes -->
+<div class="fundo-modal" id="modalGerenciar">
+  <div class="modal">
+    <button class="fechar-x" onclick="fecharModal('modalGerenciar')">✕</button>
+    <h2>👥 Estudantes — <span id="turmaGerenciar"></span></h2>
+    <div class="sub">Remover oculta o estudante apenas no app (a planilha não é alterada).</div>
+    <div class="lista-gerenciar" id="listaGerenciar"></div>
+    <div class="linha-2">
+      <input id="novoAluno" placeholder="Nome do novo estudante">
+      <button class="btn btn-roxo" onclick="adicionarAluno()">➕ Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar lançamento -->
+<div class="fundo-modal" id="modalEditar">
+  <div class="modal">
+    <button class="fechar-x" onclick="fecharModal('modalEditar')">✕</button>
+    <h2>✏️ Editar lançamento</h2>
+    <div class="sub" id="subEditar"></div>
+    <div class="campo" id="campoEditNota" style="display:none;">
+      <label>Nota (0 a 10, aceita meio ponto)</label>
+      <input id="editNota" type="number" min="0" max="10" step="0.5">
+    </div>
+    <div class="campo" id="campoEditTexto" style="display:none;">
+      <label>Texto da observação</label>
+      <textarea id="editTexto" rows="2"></textarea>
+    </div>
+    <div class="campo" id="campoEditObs">
+      <label>Comentário (opcional)</label>
+      <input id="editObs">
+    </div>
+    <button class="btn btn-roxo" style="width:100%;" onclick="salvarEdicao()">💾 Salvar alteração</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   DADOS — importados da planilha "Diário de classe"
+   Turmas, estudantes e CRITÉRIOS AVALIATIVOS seguem
+   rigorosamente as abas da planilha base.
+   ============================================================ */
+const TURMAS_PV = {
+"7ºA":["ANA CAROLINA DOS SANTOS","ANA CLARA DE ALMEIDA BERNARDINO","ANA LUIZA NASCIMENTO SAMPAIO","ARTHUR RODRIGUES DE AZEVEDO MELO","BEATRIZ RODRIGUES SOARES","BRENO ABRAHAO XAVIER","CAUE DA SILVA FREITAS","DAVI CLAUDIO AMARAL","ELENA ALVES NASCIMENTO","ELOIZA BASTOS SANTIAGO","GABRIELLY ARAUJO DE OLIVEIRA","HELENA KIKUTA VASCONCELOS","ISABELLA NUNES DOS SANTOS","ISABELLY NOVAES JOLVINO","ISADORA BELLE RIBEIRO SOUZA","JOAO LUCAS SILVA DE JESUS","JOAO PEDRO FERREIRA DA SILVA","JONAS LIMA RAMALHO","JONATAS BASTOS ROCHA","JULIA VITORIA NASCIMENTO DOS SANTOS","LIZIELE MARIA DOS SANTOS","MANUELLA ALVES RODRIGUES","MAYARA CARVALHO DOS SANTOS","MILLENA VITORIA GOMES RODRIGUES","NATHAN MARTINS DOS SANTOS","PAULA EDUARDA ALVES DIAS GARCEZ","PIETRO ALVES AVANZO","SOPHIA ALVES JANUARIO","SOPHIE SANTELLO NASCIMENTO","TAINA SOARES NOVAES","THIAGO SOUZA GUIMARAES","TOMAS CUNHA CARVALHO","VICTOR HUGO SOARES IGNACIO","VITORIA GIZZI SANTIAGO","YASMIN MARCELLY SILVA ZAMENGO"],
+"7ºB":["ANA CLARA DA SILVA SANTIAGO","ANA CLARA LAMBERTY DOS SANTOS","ANALU DEL MONACO OLIVEIRA SANTOS","BRAYAN MARTINS SILVA DE PAULA","DAVI PORTELA OLIVEIRA","EDUARDA FERNANDES DA COSTA","EDUARDO SANTOS ALDIGHIERI","ELOYSA GONCALVES MEIRELES","ELVIS ALEF MONTEIRO MACIEL","EMANUELL FERNANDO SILVA SANTOS","EMILY VITORIA DRACHEWSKI","ENZO DOMENTINO MARTINS","FILIPE SOUZA RODRIGUES DE CASTRO","GABRYEL DUARTE COSTA","HELOISA CONCEIÇÃO FERREIRA","ISABELLY FERREIRA MARTINS","ISABELLY PEREIRA SOUZA","ISADORA MAIA DIAS","JHUAN PABLO DE JESUS SILVA","LARA HELOYSA DE OLIVEIRA","LUCAS CARDOSO SILVA","LUCAS VIEIRA GUIMARÃES","MANUELA ALMEIDA CARVALHO","MARIA JULYA SILVA CAVALCANTE","MARIANA DORSA PEREIRA DE LIMA","MICAELLY VITORIA SOARES COELHO","MIGUEL CALDEIRA DO NASCIMENTO","NICOLLAS TAYLOR SILVA FERREIRA","PAMELA TAIZA VIEIRA PIRES","RAFAELA SIMÕES GOMES","RAFAELLA BRITO DE ARAUJO BARROS","RAISSA GARCIA ARAUJO","REBECA SALES SANTOS","RYAN OLIVEIRA SILVA","SOPHIA NASCIMENTO DE JESUS","VITORIA HELOA APARECIDA LEITE"],
+"8ºA":["ANA JULIA DA SILVA PEREIRA","ARTHUR ALBERGARIAS DOS SANTOS","ARTHUR SILVA LOPES","BRAYAN LACERDA DE LIMA","BRYAN CANUTO DE OLIVEIRA","DANIEL SANTOS LIMA","DAVI PIRES LIMA","DIOGO REIS MACENA ROSA","EDUARDA SANTANA SILVA","EDUARDO BRAGA DOS SANTOS TOLEDO","ENZO MATIAS DA SILVA GAMA","FERNANDO ALMEIDA TORRES","GABRIEL ALVES","GABRIEL FREITAS DOS SANTOS","GABRIEL PEREIRA CABALLERO","GABRIELLY RODRIGUES NASCIMENTO","HELOYSA ANTUNES REIS MATOS","ITALO OLIVEIRA DOS SANTOS","JOAO VITOR DA SILVA FERREIRA","JUAN LUCAS CARVALHO","JULIANNA CENNI DE OLIVEIRA LEAL","KAROLINE MARQUES DOS ANJOS ROSA","KAUAN SILVA GRAIA","LARYSSA DE SOUSA ALVES","LIVIA BARBOZA PEREIRA","LORENA SILVESTRE GALHARDO","LUIZ VINICIUS RODRIGUES DE FREITAS","LUIZA ALVES RODRIGUES","MANUELLY SILVA GUIMARAES","MARCOS VINICIUS RIBEIRO DE ARAUJO","MARIA GABRIELA SANTOS SANT ANNA","MIKAELLY DOS SANTOS VIEIRA","NATHAN JANUARIO ANDRADE","NICOLY MARCELINO REIS ALBERTO","PAULA RIBEIRO VERENKA","REBECA CORREIA DE MAGALHAES","RILARY RAIANY PEREIRA NUNES","SOPHIA SOARES FRANÇA"],
+"8ºB":["ALICE ALENCAR DA SILVA","ALUISIO PEDRO DA SILVA NETO","ALVARO LIMA RAMALHO","ANA VICTORIA MOREIRA DA SILVA","BEATRIZ DE OLIVEIRA SOUZA","BEATRIZ JEREMIAS RESENDE","BRUNA LETICIA NOVAIS DE OLIVEIRA","CAROLAINE DAMASCENO SANTOS","CAUA COSTA DE PAULA","EMANUELLE LAPOLA SOUZA","GABRIEL ALVES SANTANA","GABRIEL WALDOW FLEMING","GABRYEL SILVA CZARNIAK","GEOVANNA","HENRIQUE OLIVEIRA DE PAULA","HERLISY NICOLY NUNES DA SILVA","ISABELLY VITORIA CALDAS NEVES","JORGE ORLANDO CONDE FERRARI","KAUA HENRIQUE RODRIGUES DE OLIVEIRA","LIVIA FATORE SILVA","LORENA MAGALHAES DE ALMEIDA","LUIS MARCOS BISPO DA SILVA","LUIZ FERNANDO LOPES RODRIGUES","MARIA FERNANDA LACERDA DA SILVA","MIGUEL GOMES DE OLIVEIRA GUEDES","MIGUEL JOSE PEREIRA ALVES","MILLENE SAMPAIO DA SILVA","MURILO ALEXANDRE BENICIO DE CARVALHO","NATHALIA MOUREIRA SOUSA","PEDRO HENRIQUE","RAYSSA ALVES DE ARAUJO","SAMARA VIEIRA MASCARENHAS","SOPHIA APARECIDA DE LIMA OLIVEIRA","SOPHIA RIBEIRO DE SOUSA","VICTOR BARBOSA DE OLIVEIRA","ZAQUEU ABAYOMI DOS SANTOS SABINO"],
+"8ºC":["ALICE FONSECA RAMOS","ALICE LEITE DE MELO","ANA BEATRIZ SANTOS CARVALHO","ARTHUR DIOGO TELES","BENJAMIN KIKUTA VASCONCELOS","BRENNO MARQUES FIGUEIREDO","CAMILLE MATIAS PEREIRA DA SILVA","CARLOS EDUARDO SOARES LIMA","ELIZA MATIAS DA SILVA","ENZO SOARES COELHO","FELIPE SILVA DO NASCIMENTO","FERNANDO ANACLETO DE SOUZA","GABRIELA CABRAL BRITO","GRAZIELA BIANCA GOMES DA SILVA","HELOISA ALCANTARA BORGES","HELOISE BASTOS ROCHA","ISABELA LIMA GOMES","JOÃO PEDRO GONÇALVES LIMA","KAYCKE VIEIRA DE AMORIM","LARA CRISTINA SILVA DE AQUINO","LARA DOS ANJOS CUNHA","LEONARDO HENRIQUE DA SILVA","LORENA ALCANTARA BORGES","LUIZ PAULO RODRIGUES AZEVEDO","MARIA EDUARDA LOPES LEITE","MELISSA FERREIRA RIBEIRO","MICHEL VIEIRA GOMES","MIGUEL LEITE FERREIRA DA SILVA","MIGUEL REIS SILVA","NATHALLY FERREIRA CAVALCANTE","PAULO HENRIQUE DE ALBUQUERQUE FARIA","PEDRO OLIVEIRA DA ROCHA","RAPHAELA PEREIRA DOS SANTOS MARTINS","SAYMON RODRIGO DE SOUZA LIMA","SOFIA DE SOUZA ALVES","VITORIA GENEROSA DE JESUS LOPES","YASMIN DAMAZIO MENDES"],
+"8ºD":["ANA CLARA MOURA DA SILVA","ANNA JULIA RIBEIRO DA SILVA","ANNE ISABELLY COIMBRA DUARTE","ARTHUR SOUZA RIBEIRO","BEATRIZ FERREIRA DA SILVA","CATARINA ALVES CORDEIRO","DANIEL RODRIGUES SILVA","DAVI BERNARDO OLIVEIRA SANTOS","ENZO GABRIEL SOUSA SILVA","FELIPE PEREIRA NUNES DE SOUSA","GABRIEL PESTANA SILVA","GABRIEL TOLIN BOM","GIOVANNA MANUELA","GRAZIELLY LAURA BISPO REZENDE","HEITOR DA SILVA LIMA","HELOISA C BENEDETTI","ISABELA MENDES DA SILVA","ISAQUE NASCIMENTO DIAS","ISAQUE RAFAEL RIBEIRO DE JESUS","JOAO PEDRO DA SILVA PEREIRA","KAUAN DOS SANTOS RAMOS","KAUE VINICIUS SANTOS","KAYO NUNES DE LIRA","LARISSA ALMEIDA PEREIRA NUNES","LARISSA DA SILVA FREITAS","LAYZ FERNANDA COUTO GERVONE","LUIZ GUSTAVO ALVES LIMA","MARIANA SILVA FARIAS","MATHEUS LEITE FERREIRA DA SILVA","MIGUEL SILVA RODRIGUES","MURILO ALVES DOS SANTOS","PEDRO HENRIQUE VENÂNCIO DOS SANTOS","PIETRO MARQUES MIRANDA","RAFAEL GOMES CARVALHO","RYAN LUCAS SIQUEIRA","SOFIA PEREIRA BARROS","SOPHIA VIEIRA ALVES LUIZ"],
+"9ºA":["ALICE GONCALVES BORGES","ANA BEATRIZ FERREIRA SILVA","ANA LAURA ARRUDA DE SOUZA OLIVEIRA","ANDRES GERMAN MACABI ZAMORA","ANGELINA RODRIGUES DA SILVA","ANNA FLAVIA BARBOSA ICHIYAMA","BERNARDO TEODORO RODRIGUES","BIANCA SOARES FRANCA","BRIAN CARDEAL DE LIMA","GUILHERME SANTOS DA SILVA","GUSTAVO RODRIGUES DE SOUZA","GUSTAVO SANTOS DA SILVA","HELOANY PEREIRA VIEIRA","ÍCARO PEREIRA DE ESPINDOLA","JULIA DA SILVA BRASIL","KAUAN BOSCO DA COSTA","LIVIA CORDEIRO DA SILVA","MANUELLA CHIAVELLI ANANIAS PUGA","MARCIO JUNIOR BIE ROCHA","MARCUS VINICIUS VAZ DA SILVA","MARIA ISABEL CESARIO DA SILVA","MATHEUS MARTINS DE OLIVEIRA","MIGUEL SOUZA NASCIMENTO PORTO","MIRELLA KAWANY SANTOS DA SILVA","PAULO VICTOR DE SALES PEREIRA","RAFAEL SOUZA MATOS","RAFAELLA OLIVEIRA RAMOS DOS SANTOS","RAYANE GOMES LEITE","RIQUELME CESAR ALMEIDA DOS SANTOS","RUAN PEDRO PEREIRA DA SILVA","RYAN ANTONIO SAMPAIO COSTA","TAUANNE SOUZA RODRIGUES DE CASTRO","TAUANY GOUVEIA MATTAR ROXO","VICTOR MATHEUS BATISTA DE MELO","VINICIUS MARCOLINO SANTOS"],
+"9ºB":["ALUANY DHANDARA SANTOS","ANNA BEATRIZ ANDRADE DE SOUZA","ARTHUR ENZO SANTOS BARRETO","CIBELLE UMAR FELIX TAVARES","EMANUEL JESUS LUCENA GONZALEZ","EMILLY CAROLINE SANTOS DA SILVA","ENZO ANTONIO RODRIGUES DA SILVA","ESTHER ARAUJO SAMPAIO","FELIPE LIMA NOGUEIRA","FERNANDO BARROSO VILAS BOAS","GABRIEL BEZERRA COLANTUONO","GEOVANA LIMA GOMES","GUSTAVO HENRIQUE DA SILVA SANTOS","HELOISA AGUALBERTO DE SOUZA LIMA","ISABELLA VITORIA SANTELLO DOMINGOS","ISABELLY ALMEIDA ROCHA ALONSO","ISAURA SOPHYA DE SOUZA SILVA","JOÃO VITOR LOPES MOREIRA","KAIO MARCOS ALVES DA SILVA","KAUANY EMANUELI MENEZES REIS","LAURA FERREIRA DOS ANJOS","LUCAS CARVALHO BONIFACIO","LUIZ FERNANDO RIBEIRO FERNANDES CANELA","LUIZ HENRIQUE DE SOUZA PEREIRA SANTOS","MARIA ISABEL MONTEIRO","MURILO SANTOS PIONNA","PIETRO DE LIMA NASCIMENTO PEREIRA","PIETRO SILVA PEREIRA","POLLYANA DAMAZIO","SAMUEL MONTEIRO DA SILVA","STHEPHANY FLAVIANE VIEIRA DA SILVA","VICTOR HUGO DE JESUS MOURA","VITOR GABRIEL BARBOSA ANDRADE","VITÓRIA DE OLIVEIRA DA SILVA","YAN SANTOS CARRILHO DIAS"],
+"9ºC":["ANA LAURA DA SILVA MORAIS","ARTHUR ANDERSON DE MELO SILVA","ARTHUR DE ALMEIDA DIAS","BEATRIZ SOUZA DE JESUS","BERNARDO ROCHA COSTA DE MELO","EMANUELE DA SILVA GONÇALVES","FELIPE SAMUEL FARIAS DA SILVA","GABRIEL YUJI HAGIO","GABRIELA LOPES DA SILVA","HEITOR FERNANDES AMADO DA SILVA","ISAQUE DUARTE FERREIRA MELO","IZABELA VIEIRA DA SILVEIRA","JULIA RAYSSA SOARES BEZERRA","LANAI DOS ANJOS CUNHA","LUZIMAR PURIFICAÇAO PENNAFIEL","MARIA CLARA VIANA DE JESUS","MIGUEL CARVALHO DE OLIVEIRA","MIKAELLY DOS SANTOS SOUZA","NICOLLAS DUARTE DE LIMA","PEDRO HENRIQUE DA SILVA ROCHA","PEDRO HENRIQUE GOMES SILVA","PEDRO HENRIQUE S. FREGATTI","PEDRO JUNIOR DA SILVA MOURA","PIETRA HENRIQUES REZENDE CERQUEIRA","RAFAEL QUEIROZ DOS SANTOS","RAFAEL SOUSA SILVA","RAISSA SILVA ARAUJO","RAYSSA MIRELLY DA SILVA","ROBSON DAVI SANTOS ALENCAR DA CRUZ","STEPHANY VITORIA SANTOS PEREIRA","THAIS SOARES DA SILVA","THIAGO ANIZIO CAVALCANTE","VICTOR HUGO SANTOS DA SILVA","VITOR GABRIEL SANTOS DA SILVA","YGOR MELO DOS SANTOS"],
+"9ºD":["AGATHA DE SOUZA MORAES","ANA BEATRIZ LOURENÇO","ANA JULIA PRUDENCIO CABRERA","ARTHUR GUILHERME DA SILVA REIS","AYLA BEATRIZ ANTUNES REIS MATOS","AYLLA PIETRA SILVA DE CARVALHO CONDE","CAIO GOMES SANTANA","DAVI AVELINO SILVA","DAVI FELIPE MOREIRA REIS","ENZO GABRIEL MACIEL SOARES","ESTELA NADYR NERE FERREIRA","GABRIELA VITORIA DA SILVA","GEOVANNA CRISTINA RODRIGUES DE MORAIS","GEOVANNA DUVILIERZ CONDE","GUILHERME MATHEUS RIBEIRO DOS SANTOS","GUSTAVO LINO DOS SANTOS SILVA","ISABELLE DE SOUZA SILVA","ITALO DA SILVA SANTOS","JULIANA DA SILVA BRITO","KIMBERLY GONCALVES REIS","LUCAS LINARES REIS GOMES SOUSA","MANUELLA OLIVEIRA SANTOS","MARCUS VINICIUS SOARES RODRIGUES","MARIA CLARA LIMA DA SILVA","MARIA EDUARDA SILVA SANTOS","MATHEUS SILVA DE FARIAS","MICHEL TEIXEIRA DOS SANTOS","MIGUEL ARAUJO BATISTA","MIGUEL LUCAS BARBOSA DA SILVA","MURILO PEREIRA MARQUES DOS SANTOS","NICOLAS PAULINO DE BRITO","NICOLLY VITORIA DOS REIS FERREIRA","PAULO HENRIQUE TELES DE SOUZA","PYETRO VICTOR SANTANA SANTOS","RANNIA NICOLLY MONTEIRO MACIEL","ROBERTA PATRICIA DE JESUS","THALLYA FRANÇA SECUNDINO"]
+};
+
+/* Listas próprias das abas de História (9º anos) — como estão na planilha */
+const TURMAS_HIST = {
+"9ºA":["JULIA DA SILVA BRASIL","ALICE GONCALVES BORGES","ANA BEATRIZ FERREIRA SILVA","ANA LAURA ARRUDA DE SOUZA OLIVEIRA","ANDRES GERMAN MACABI ZAMORA","ANGELINA RODRIGUES DA SILVA","ANNA FLAVIA BARBOSA ICHIYAMA","BERNARDO TEODORO RODRIGUES","BRIAN CARDEAL DE LIMA","BIANCA SOARES","GUILHERME SANTOS DA SILVA","GUSTAVO RODRIGUES DE SOUZA","GUSTAVO SANTOS DA SILVA","HELOANY PEREIRA VIEIRA","ÍCARO PEREIRA DE ESPINDOLA","KAUAN BOSCO DA COSTA","LIVIA CORDEIRO DA SILVA","MANUELLA CHIAVELLI ANANIAS PUGA","MARCIO JUNIOR BIE ROCHA","MARCUS VINICIUS VAZ DA SILVA","MARIA ISABEL CESARIO DA SILVA","MATHEUS MARTINS DE OLIVEIRA","MIGUEL SOUZA NASCIMENTO PORTO","MIRELLA KAWANY SANTOS DA SILVA","PAULO VICTOR DE SALES PEREIRA","RAFAEL SOUZA MATOS","RAFAELLA OLIVEIRA RAMOS DOS SANTOS","RAYANE GOMES LEITE","RIQUELME CESAR ALMEIDA DOS SANTOS","RUAN PEDRO PEREIRA DA SILVA","RYAN ANTONIO SAMPAIO COSTA","TAUANNE SOUZA RODRIGUES DE CASTRO","TAUANY GOUVEIA MATTAR ROXO","VICTOR MATHEUS BATISTA DE MELO","VINICIUS MARCOLINO SANTOS"],
+"9ºB":["ALUANY DHANDARA SANTOS","ANNA BEATRIZ ANDRADE DE SOUZA","ARTHUR ENZO SANTOS BARRETO","CIBELLE UMAR FELIX TAVARES","EMANUEL JESUS LUCENA GONZALEZ","EMILLY CAROLINE SANTOS DA SILVA","ENZO ANTONIO RODRIGUES DA SILVA","ESTHER ARAUJO SAMPAIO","FELIPE LIMA NOGUEIRA","FERNANDO BARROSO VILAS BOAS","GABRIEL BEZERRA COLANTUONO","GEOVANA LIMA GOMES","GUSTAVO HENRIQUE DA SILVA SANTOS","HELOISA AGUALBERTO DE SOUZA LIMA","ISABELLA VITORIA SANTELLO DOMINGOS","ISABELLY ALMEIDA ROCHA ALONSO","ISAURA SOPHYA DE SOUZA SILVA","JOÃO VITOR LOPES MOREIRA","KAIO MARCOS ALVES DA SILVA","KAUANY EMANUELI MENEZES REIS","LAURA FERREIRA DOS ANJOS","LUCAS CARVALHO BONIFACIO","LUIZ FERNANDO RIBEIRO FERNANDES CANELA","LUIZ HENRIQUE DE SOUZA PEREIRA SANTOS","MARIA ISABEL MONTEIRO","MURILO SANTOS PIONNA","PIETRO DE LIMA NASCIMENTO PEREIRA","PIETRO SILVA PEREIRA","POLLYANA DAMAZIO DE SOUSA","SAMUEL MONTEIRO DA SILVA","STHEPHANY FLAVIANE VIEIRA DA SILVA","VICTOR HUGO DE JESUS MOURA","VITOR GABRIEL BARBOSA ANDRADE","VITÓRIA DE OLIVEIRA DA SILVA","YAN SANTOS CARRILHO DIAS"],
+"9ºC":["ANA LAURA DA SILVA MORAIS","ARTHUR ANDERSON DE MELO SILVA","ARTHUR DE ALMEIDA DIAS","BEATRIZ SOUZA DE JESUS","BERNARDO ROCHA COSTA DE MELO","ERNANI DE ALMEIDA CARLOS FILHO","FELIPE SAMUEL FARIAS DA SILVA","GABRIEL YUJI HAGIO","GABRIELA LOPES DA SILVA","HEITOR FERNANDES AMADO DA SILVA","ISAQUE DUARTE FERREIRA MELO","IZABELA VIEIRA DA SILVEIRA","JULIA RAYSSA SOARES BEZERRA","LANAI DOS ANJOS CUNHA","RAYSSA MIRELLY","LUZIMAR PURIFICAÇAO PENNAFIEL","MARIA CLARA VIANA DE JESUS","MIKAELLY DOS SANTOS SOUZA","NICOLLAS DUARTE DE LIMA","PEDRO HENRIQUE DA SILVA ROCHA","PEDRO HENRIQUE GOMES SILVA","PEDRO JUNIOR DA SILVA MOURA","RAFAEL QUEIROZ DOS SANTOS","RAFAEL SOUSA SILVA","RAISSA SILVA ARAUJO","ROBSON DAVI SANTOS ALENCAR DA CRUZ","STEPHANY VITORIA SANTOS PEREIRA","THAIS SOARES DA SILVA","THIAGO ANIZIO CAVALCANTE","VICTOR HUGO SANTOS DA SILVA","VITOR GABRIEL SANTOS DA SILVA","MIGUEL CARVALHO DE OLIVEIRA","YGOR MELO DOS SANTOS","PIETRA HENRIQUES REZENDE CERQUEIRA","PEDRO HENRIQUE S. FREGATTI"],
+"9ºD":["AGATHA DE SOUZA MORAES","ANA JULIA PRUDENCIO CABRERA","ARTHUR GUILHERME DA SILVA REIS","AYLA BEATRIZ ANTUNES REIS MATOS","AYLLA PIETRA SILVA DE CARVALHO CONDE","CAIO GOMES SANTANA","DAVI AVELINO SILVA","DAVI FELIPE MOREIRA REIS","ENZO GABRIEL MACIEL SOARES","ESTELA NADYR NERE FERREIRA","GABRIELA VITORIA DA SILVA","GEOVANNA CRISTINA RODRIGUES DE MORAIS","GEOVANNA DUVILIERZ CONDE","GUILHERME MATHEUS RIBEIRO DOS SANTOS","GUSTAVO LINO DOS SANTOS SILVA","ISABELLE DE SOUZA SILVA","ITALO DA SILVA SANTOS","JULIANA DA SILVA BRITO","KIMBERLY GONCALVES REIS","LUCAS LINARES REIS GOMES SOUSA","MANUELLA OLIVEIRA SANTOS","MARIA CLARA LIMA DA SILVA","MARIA EDUARDA SILVA SANTOS","MATHEUS SILVA DE FARIAS","MICHEL TEIXEIRA DOS SANTOS","MIGUEL ARAUJO BATISTA","MIGUEL LUCAS BARBOSA DA SILVA","NICOLAS PAULINO DE BRITO","NICOLLY VITORIA DOS REIS FERREIRA","PAULO HENRIQUE TELES DE SOUZA","PYETRO VICTOR SANTANA SANTOS","RANNIA NICOLLY MONTEIRO MACIEL","ROBERTA PATRICIA DE JESUS","THALLYA FRANÇA SECUNDINO","MARCUS VINICIUS SOARES RODRIGUES"]
+};
+
+/* CRITÉRIOS AVALIATIVOS — exatamente as colunas da planilha.
+   tipo "nota"  → lança nota de 0 a 10 na coluna correspondente
+   tipo "texto" → registra texto (Observações / Feedback / Frequência) */
+const DISCIPLINAS = {
+  "Projeto de Vida": {
+    turmas: TURMAS_PV,
+    criterios: [
+      {emoji:"📝", nome:"Atividades gerais / Nota",        tipo:"nota"},
+      {emoji:"👀", nome:"Observação direta / Nota",        tipo:"nota"},
+      {emoji:"🌱", nome:"Projeto / ABA - Farmar Aura",     tipo:"nota"},
+      {emoji:"🗒️", nome:"Observações",                     tipo:"texto"}
+    ]
+  },
+  "História": {
+    turmas: TURMAS_HIST,
+    criterios: [
+      {emoji:"📓", nome:"Materiais caderno e livro do estudante / nota", tipo:"nota"},
+      {emoji:"🖼️", nome:"Cartazes / Nota",                 tipo:"nota"},
+      {emoji:"⚖️", nome:"Júri simulado / Nota",            tipo:"nota"},
+      {emoji:"1️⃣", nome:"Tarefa Bloco 1 / Nota",           tipo:"nota"},
+      {emoji:"2️⃣", nome:"Tarefa Bloco 2 / Nota",           tipo:"nota"},
+      {emoji:"3️⃣", nome:"Tarefa Bloco 3 / Nota",           tipo:"nota"},
+      {emoji:"4️⃣", nome:"Tarefa Bloco 4 / Nota",           tipo:"nota"},
+      {emoji:"5️⃣", nome:"Tarefa Bloco 5 / Nota",           tipo:"nota"},
+      {emoji:"🏛️", nome:"Prova Paulista / Nota",           tipo:"nota"},
+      {emoji:"🔁", nome:"Atividades extras retomada e revisão / Nota", tipo:"nota"},
+      {emoji:"🆘", nome:"Recuperação / Nota",              tipo:"nota"},
+      {emoji:"📅", nome:"Frequência - aulas",              tipo:"texto"},
+      {emoji:"🗒️", nome:"Observações",                     tipo:"texto"},
+      {emoji:"💬", nome:"Feedback",                        tipo:"texto"}
+    ]
+  }
+};
+
+/* Observações rápidas — vocabulário já usado na própria planilha */
+const OBS_RAPIDAS = [
+  "Atendido(a) Professor Tutor",
+  "Dormindo durante as aulas",
+  "Atrapalhando o desenvolvimento das aulas",
+  "Estudante atípico(a) - Atividades diversificadas",
+  "Estudante recente",
+  "Destaque da sala",
+  "Dificuldades de aprendizagem"
+];
+
+/* ---------- Avatares por gênero (meninas 👧 / meninos 👦) ---------- */
+const AVATARES_F = ["👧","👩","👩‍🦱","👩‍🦰","👱‍♀️","🙋‍♀️","👸","🦸‍♀️","🧝‍♀️","🧚‍♀️","👩‍🎓","👩‍🚀"];
+const AVATARES_M = ["👦","👨","👨‍🦱","👱‍♂️","🙋‍♂️","🤴","🦸‍♂️","🧝‍♂️","🧙‍♂️","👨‍🎓","👨‍🚀","🥷"];
+const CORES_F = ["#ffd9e0","#fbdaff","#ecdfff","#ffe3ef","#fff3d0","#ffe8d9"];
+const CORES_M = ["#d9f2ff","#e0e7ff","#d0fff4","#e3ffd9","#dcf9d0","#e8f4ff"];
+
+/* Primeiros nomes femininos das turmas (da própria planilha) */
+const NOMES_FEMININOS = new Set(["AGATHA","ALICE","ALUANY","ANA","ANALU","ANGELINA","ANNA","ANNE","AYLA","AYLLA","BEATRIZ","BIANCA","BRUNA","CAMILLE","CAROLAINE","CATARINA","CIBELLE","EDUARDA","ELENA","ELIZA","ELOIZA","ELOYSA","EMANUELE","EMANUELLE","EMILY","EMILLY","ESTELA","ESTHER","GABRIELA","GABRIELLY","GEOVANA","GEOVANNA","GIOVANNA","GRAZIELA","GRAZIELLY","HELENA","HELOANY","HELOISA","HELOISE","HELOYSA","HERLISY","ISABELA","ISABELLA","ISABELLE","ISABELLY","ISADORA","ISAURA","IZABELA","JULIA","JULIANA","JULIANNA","KAROLINE","KAUANY","KIMBERLY","LANAI","LARA","LARISSA","LARYSSA","LAURA","LAYZ","LIVIA","LIZIELE","LORENA","LUIZA","LUZIMAR","MANUELA","MANUELLA","MANUELLY","MARIA","MARIANA","MAYARA","MELISSA","MICAELLY","MIKAELLY","MILLENA","MILLENE","MIRELLA","NATHALIA","NATHALLY","NICOLY","NICOLLY","PAMELA","PAULA","PIETRA","POLLYANA","RAFAELA","RAFAELLA","RAISSA","RANNIA","RAPHAELA","RAYANE","RAYSSA","REBECA","RILARY","ROBERTA","SAMARA","SOFIA","SOPHIA","SOPHIE","STEPHANY","STHEPHANY","TAINA","TAUANNE","TAUANY","THAIS","THALLYA","VITORIA","YASMIN"]);
+/* Nomes masculinos terminados em A (exceções à regra automática) */
+const MASCULINOS_EM_A = new Set(["CAUA","KAUA","JOSUA","LUCA","NEHEMIAS"]);
+
+function semAcentos(s){ return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+function ehMenina(nome){
+  const primeiro = semAcentos(nome.trim().toUpperCase()).split(/\s+/)[0];
+  if(NOMES_FEMININOS.has(primeiro)) return true;
+  if(MASCULINOS_EM_A.has(primeiro)) return false;
+  return primeiro.endsWith("A"); // regra automática para estudantes novos
+}
+function avatarDe(nome){
+  const h = hash(nome);
+  return ehMenina(nome) ? AVATARES_F[h % AVATARES_F.length] : AVATARES_M[h % AVATARES_M.length];
+}
+function corDe(nome){
+  const h = hash(nome);
+  return ehMenina(nome) ? CORES_F[h % CORES_F.length] : CORES_M[h % CORES_M.length];
+}
+
+/* ============================================================
+   ESTADO (salvo no aparelho via localStorage)
+   ============================================================ */
+let S = {
+  config:{url:"", professor:"", bimestre:""},
+  disciplinaAtual:"Projeto de Vida",
+  turmaAtual:"7ºA",
+  registros:[],   // {id,dataHora,disciplina,turma,estudante,criterio,tipo,valor,observacao,bimestre,professor,enviado}
+  exclusoes:[],   // exclusões aguardando envio para a planilha: {id}
+  extras:{},      // estudantes adicionados: chave "disciplina|turma"
+  removidos:{}    // estudantes ocultados: chave "disciplina|turma"
+};
+try{
+  const salvo = JSON.parse(localStorage.getItem("dojoTurmaV2"));
+  if(salvo) S = Object.assign(S, salvo);
+}catch(e){}
+S.exclusoes = S.exclusoes || [];
+S.config.bimestre = ""; // seletor de bimestre removido do app
+
+let modoSelecao=false, selecionados=new Set(), alunosAlvo=[], criterioSel=null, notaSel=null;
+
+function salvar(){ try{ localStorage.setItem("dojoTurmaV2", JSON.stringify(S)); }catch(e){} }
+
+/* ============================================================
+   UTILITÁRIOS
+   ============================================================ */
+function hash(str){ let h=0; for(let i=0;i<str.length;i++){h=(h*31+str.charCodeAt(i))>>>0;} return h; }
+function nomeCurto(n){ const p=n.split(/\s+/); return p.length>1?p[0]+" "+p[1]:p[0]; }
+function agora(){
+  const d=new Date(), z=x=>String(x).padStart(2,"0");
+  return `${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+}
+function chaveTurma(){ return S.disciplinaAtual+"|"+S.turmaAtual; }
+function turmasAtuais(){ return DISCIPLINAS[S.disciplinaAtual].turmas; }
+function alunosDe(turma){
+  const k=S.disciplinaAtual+"|"+turma;
+  const base=(turmasAtuais()[turma]||[]).concat(S.extras[k]||[]);
+  const rem=new Set(S.removidos[k]||[]);
+  return base.filter(a=>!rem.has(a)).sort((a,b)=>a.localeCompare(b,"pt-BR"));
+}
+function mediaDe(turma, aluno){
+  const notas=S.registros.filter(r=>r.disciplina===S.disciplinaAtual && r.turma===turma &&
+    r.estudante===aluno && r.tipo==="Nota");
+  if(notas.length===0) return null;
+  return notas.reduce((t,r)=>t+Number(r.valor||0),0)/notas.length;
+}
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("mostrar");
+  clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove("mostrar"),2800);
+}
+function abrirModal(id){ document.getElementById(id).classList.add("aberto"); }
+function fecharModal(id){ document.getElementById(id).classList.remove("aberto"); }
+document.querySelectorAll(".fundo-modal").forEach(m=>{
+  m.addEventListener("click",e=>{ if(e.target===m) m.classList.remove("aberto"); });
+});
+
+/* ============================================================
+   RENDERIZAÇÃO
+   ============================================================ */
+function renderDisciplinas(){
+  const el=document.getElementById("listaDisciplinas");
+  el.innerHTML="";
+  Object.keys(DISCIPLINAS).forEach(d=>{
+    const b=document.createElement("button");
+    b.className="chip-disc"+(d===S.disciplinaAtual?" ativa":"");
+    b.textContent=(d==="História"?"📜 ":"🌟 ")+d;
+    b.onclick=()=>{
+      S.disciplinaAtual=d;
+      if(!turmasAtuais()[S.turmaAtual]) S.turmaAtual=Object.keys(turmasAtuais())[0];
+      selecionados.clear(); salvar(); render();
+    };
+    el.appendChild(b);
+  });
+}
+function renderTurmas(){
+  const el=document.getElementById("listaTurmas");
+  el.innerHTML="";
+  Object.keys(turmasAtuais()).forEach(t=>{
+    const b=document.createElement("button");
+    b.className="chip-turma"+(t===S.turmaAtual?" ativa":"");
+    b.textContent=t;
+    b.onclick=()=>{ S.turmaAtual=t; selecionados.clear(); salvar(); render(); };
+    el.appendChild(b);
+  });
+}
+function renderAlunos(){
+  const grade=document.getElementById("gradeAlunos");
+  grade.innerHTML="";
+  alunosDe(S.turmaAtual).forEach(nome=>{
+    const h=hash(nome), m=mediaDe(S.turmaAtual,nome);
+    const card=document.createElement("div");
+    card.className="card-aluno"+(selecionados.has(nome)?" selecionado":"");
+    const rot=m===null?"–":m.toFixed(1).replace(".",",");
+    const cls=m===null?"sem":(m>=6?"boa":"baixa");
+    card.innerHTML=`
+      <span class="check">✅</span>
+      <span class="media ${cls}" title="Média das notas lançadas">${rot}</span>
+      <div class="avatar" style="background:${corDe(nome)}">${avatarDe(nome)}</div>
+      <div class="nome-aluno" title="${nome}">${nomeCurto(nome)}</div>`;
+    card.onclick=()=>{
+      if(modoSelecao){
+        selecionados.has(nome)?selecionados.delete(nome):selecionados.add(nome);
+        renderAlunos(); atualizarFab();
+      } else {
+        abrirLancamento([nome]);
+      }
+    };
+    grade.appendChild(card);
+  });
+}
+function atualizarBadge(){
+  const pend=S.registros.filter(r=>!r.enviado).length + (S.exclusoes||[]).length;
+  const b=document.getElementById("badgeSync");
+  if(!S.config.url){ b.className="badge-sync pendente"; b.textContent=`⚙️ configurar planilha (${pend} no aparelho)`; }
+  else if(pend>0){ b.className="badge-sync pendente"; b.textContent=`⏳ ${pend} pendente${pend>1?"s":""}`; }
+  else { b.className="badge-sync"; b.textContent="✅ sincronizado"; }
+}
+function atualizarFab(){
+  const f=document.getElementById("fabSelecao");
+  f.style.display=(modoSelecao&&selecionados.size>0)?"block":"none";
+  f.textContent=`Lançar (${selecionados.size})`;
+}
+function render(){ renderDisciplinas(); renderTurmas(); renderAlunos(); atualizarBadge(); atualizarFab(); }
+
+/* ============================================================
+   SELEÇÃO MÚLTIPLA / TURMA INTEIRA
+   ============================================================ */
+function alternarSelecao(){
+  modoSelecao=!modoSelecao;
+  selecionados.clear();
+  document.getElementById("btnSelecionar").classList.toggle("ativo",modoSelecao);
+  renderAlunos(); atualizarFab();
+}
+function lancarSelecionados(){ abrirLancamento([...selecionados]); }
+function lancarTurmaInteira(){ abrirLancamento(alunosDe(S.turmaAtual)); }
+
+/* ============================================================
+   LANÇAMENTO (critérios da planilha)
+   ============================================================ */
+function abrirLancamento(alunos){
+  alunosAlvo=alunos; criterioSel=null; notaSel=null;
+  document.getElementById("tituloLanc").textContent=
+    alunos.length===1?"🎯 "+nomeCurto(alunos[0]):`🎯 ${alunos.length} estudantes`;
+  document.getElementById("subLanc").textContent=
+    (alunos.length===1?alunos[0]:alunos.map(nomeCurto).join(", ").slice(0,120))+
+    " — "+S.turmaAtual+" · "+S.disciplinaAtual;
+  const lc=document.getElementById("listaCriterios");
+  lc.innerHTML="";
+  DISCIPLINAS[S.disciplinaAtual].criterios.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="btn-crit";
+    b.innerHTML=`<span class="emoji">${c.emoji}</span> ${c.nome}
+      <span class="tipo ${c.tipo}">${c.tipo==="nota"?"NOTA":"TEXTO"}</span>`;
+    b.onclick=()=>selecionarCriterio(c,b);
+    lc.appendChild(b);
+  });
+  document.getElementById("painelLanc").style.display="none";
+  document.getElementById("lancObs").value="";
+  document.getElementById("notaLivre").value="";
+  renderUltimos();
+  abrirModal("modalLanc");
+}
+/* Lista os últimos lançamentos do estudante aberto, com Editar/Excluir */
+function renderUltimos(){
+  const sec=document.getElementById("secaoUltimos"), lst=document.getElementById("listaUltimos");
+  if(alunosAlvo.length!==1){ sec.style.display="none"; return; }
+  const regs=S.registros.filter(r=>r.estudante===alunosAlvo[0] &&
+    r.turma===S.turmaAtual && r.disciplina===S.disciplinaAtual).slice(-6).reverse();
+  if(regs.length===0){ sec.style.display="none"; return; }
+  sec.style.display="block";
+  lst.innerHTML="";
+  regs.forEach(r=>{
+    const d=document.createElement("div");
+    d.className="item-hist";
+    const valor=r.tipo==="Nota"
+      ?`<strong style="color:var(--azul)">nota ${String(r.valor).replace(".",",")}</strong>`
+      :`<em>"${String(r.valor).slice(0,60)}"</em>`;
+    d.innerHTML=`<div style="flex:1;">${r.criterio} — ${valor}<div class="quando">${r.dataHora}</div></div>`;
+    const ac=document.createElement("div");
+    ac.style.cssText="display:flex; gap:6px; flex:0 0 auto; align-items:center;";
+    const bE=document.createElement("button");
+    bE.className="btn-mini"; bE.textContent="✏️ Editar";
+    bE.onclick=()=>abrirEdicao(r.id);
+    const bX=document.createElement("button");
+    bX.className="btn-mini perigo"; bX.textContent="🗑️ Excluir";
+    bX.onclick=()=>excluirRegistro(r.id);
+    ac.appendChild(bE); ac.appendChild(bX); d.appendChild(ac);
+    lst.appendChild(d);
+  });
+}
+function selecionarCriterio(c,botao){
+  criterioSel=c; notaSel=null;
+  document.querySelectorAll("#listaCriterios .btn-crit").forEach(b=>b.classList.remove("sel"));
+  botao.classList.add("sel");
+  document.getElementById("painelLanc").style.display="block";
+  const ehNota=c.tipo==="nota";
+  document.getElementById("areaNota").style.display=ehNota?"block":"none";
+  document.getElementById("areaTexto").style.display=ehNota?"none":"block";
+  document.getElementById("rotuloPasso2").textContent=
+    ehNota?"2️⃣ Escolha ou digite a nota:":"2️⃣ Toque em uma observação pronta ou escreva abaixo:";
+  if(ehNota){
+    const ch=document.getElementById("chipsNota");
+    ch.innerHTML="";
+    for(let n=0;n<=10;n++){
+      const b=document.createElement("button");
+      b.className="chip-nota"; b.textContent=n;
+      b.onclick=()=>{
+        notaSel=n; document.getElementById("notaLivre").value=n;
+        ch.querySelectorAll(".chip-nota").forEach(x=>x.classList.remove("sel"));
+        b.classList.add("sel");
+      };
+      ch.appendChild(b);
+    }
+  } else {
+    const ch=document.getElementById("chipsObs");
+    ch.innerHTML="";
+    OBS_RAPIDAS.forEach(o=>{
+      const b=document.createElement("button");
+      b.className="chip-obs"; b.textContent=o;
+      b.onclick=()=>{
+        b.classList.toggle("sel");
+        const sel=[...ch.querySelectorAll(".chip-obs.sel")].map(x=>x.textContent);
+        document.getElementById("lancObs").value=sel.join(" / ");
+      };
+      ch.appendChild(b);
+    });
+  }
+  document.getElementById("painelLanc").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function confirmarLancamento(){
+  if(!criterioSel){ toast("Escolha um critério primeiro."); return; }
+  const obs=document.getElementById("lancObs").value.trim();
+  let valor;
+  if(criterioSel.tipo==="nota"){
+    valor=parseFloat(String(document.getElementById("notaLivre").value).replace(",","."));
+    if(isNaN(valor)&&notaSel!==null) valor=notaSel;
+    if(isNaN(valor)){ toast("Informe a nota (0 a 10)."); return; }
+    if(valor<0||valor>10){ toast("A nota deve estar entre 0 e 10."); return; }
+  } else {
+    valor=obs;
+    if(!valor){ toast("Escreva ou escolha a observação."); return; }
+  }
+  const quando=agora();
+  alunosAlvo.forEach(a=>{
+    S.registros.push({
+      id: Date.now()+"-"+Math.random().toString(36).slice(2,8),
+      dataHora: quando,
+      disciplina: S.disciplinaAtual,
+      turma: S.turmaAtual,
+      estudante: a,
+      criterio: criterioSel.nome,
+      tipo: criterioSel.tipo==="nota"?"Nota":"Observação",
+      valor: valor,
+      observacao: criterioSel.tipo==="nota"?obs:"",
+      bimestre: S.config.bimestre,
+      professor: S.config.professor||"",
+      enviado: false
+    });
+  });
+  salvar();
+  fecharModal("modalLanc");
+  if(modoSelecao) alternarSelecao(); else render();
+  const rot=criterioSel.tipo==="nota"?`nota ${String(valor).replace(".",",")}`:"observação";
+  toast(`✔️ ${criterioSel.nome} — ${rot} para ${alunosAlvo.length===1?nomeCurto(alunosAlvo[0]):alunosAlvo.length+" estudantes"}`);
+  sincronizar(false);
+}
+
+/* ============================================================
+   SINCRONIZAÇÃO COM A PLANILHA (Google Apps Script)
+   ============================================================ */
+let sincronizando=false;
+async function sincronizar(manual){
+  const url=S.config.url;
+  const pendentes=S.registros.filter(r=>!r.enviado);
+  const exclusoes=(S.exclusoes||[]).slice();
+  if(!url){ if(manual) toast("⚙️ Configure a URL do script primeiro (botão ⚙️)."); atualizarBadge(); return; }
+  if(pendentes.length===0 && exclusoes.length===0){ if(manual) toast("✅ Nada pendente — tudo já está na planilha."); return; }
+  if(sincronizando) return;
+  sincronizando=true;
+  try{
+    const corpo=pendentes.map(r=>({
+      dataHora:r.dataHora, disciplina:r.disciplina, turma:r.turma, estudante:r.estudante,
+      criterio:r.criterio, tipo:r.tipo, valor:r.valor, observacao:r.observacao,
+      bimestre:r.bimestre, professor:r.professor, id:r.id
+    }));
+    const resp=await fetch(url,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"}, // evita bloqueio CORS do Apps Script
+      body:JSON.stringify({registros:corpo, exclusoes:exclusoes})
+    });
+    const j=await resp.json();
+    if(j && j.ok){
+      pendentes.forEach(r=>r.enviado=true);
+      const idsExcl=new Set(exclusoes.map(x=>x.id));
+      S.exclusoes=(S.exclusoes||[]).filter(x=>!idsExcl.has(x.id));
+      salvar(); atualizarBadge(); renderAlunos();
+      const partes=[];
+      if(pendentes.length) partes.push(`${pendentes.length} lançamento${pendentes.length>1?"s":""}`);
+      if(exclusoes.length) partes.push(`${exclusoes.length} ${exclusoes.length>1?"exclusões":"exclusão"}`);
+      toast(`📤 Planilha atualizada: ${partes.join(" e ")}!`);
+    } else {
+      throw new Error(j&&j.erro?j.erro:"resposta inválida");
+    }
+  }catch(e){
+    atualizarBadge();
+    if(manual) toast("⚠️ Sem conexão com a planilha agora. As alterações ficam guardadas e serão reenviadas.");
+  }finally{ sincronizando=false; }
+}
+setInterval(()=>sincronizar(false), 60000);
+window.addEventListener("online",()=>sincronizar(false));
+
+/* ============================================================
+   HISTÓRICO / EXPORTAÇÃO
+   ============================================================ */
+function renderHistorico(){
+  const el=document.getElementById("listaHistorico");
+  const regs=[...S.registros].reverse().slice(0,300);
+  const pend=S.registros.filter(r=>!r.enviado).length;
+  document.getElementById("resumoHist").textContent=
+    `${S.registros.length} lançamento(s) no total — ${pend} aguardando envio para a planilha.`;
+  el.innerHTML=regs.length?"":"<p style='color:#8a86a3;font-size:.85rem;'>Nenhum lançamento ainda. Toque em um estudante para começar!</p>";
+  regs.forEach(r=>{
+    const d=document.createElement("div");
+    d.className="item-hist";
+    const valor=r.tipo==="Nota"
+      ?`<strong style="color:var(--azul)">nota ${String(r.valor).replace(".",",")}</strong>`
+      :`<em>"${r.valor}"</em>`;
+    d.innerHTML=`<span style="font-size:1.1rem;">${r.tipo==="Nota"?"🔢":"🗒️"}</span>
+      <div><strong>${nomeCurto(r.estudante)}</strong> (${r.turma} · ${r.disciplina})<br>
+      ${r.criterio} — ${valor}
+      ${r.observacao?`<br><em style="color:#6f6a8c;">"${r.observacao}"</em>`:""}
+      <div class="quando">${r.dataHora}${r.bimestre?" · "+r.bimestre:""}${r.professor?" · "+r.professor:""}</div></div>
+      <span class="tag-status ${r.enviado?"ok":"pend"}">${r.enviado?"na planilha":"pendente"}</span>`;
+    const acoes=document.createElement("div");
+    acoes.style.cssText="display:flex; flex-direction:column; gap:5px; flex:0 0 auto; margin-left:4px;";
+    const bE=document.createElement("button");
+    bE.className="btn-mini"; bE.textContent="✏️ Editar";
+    bE.onclick=()=>abrirEdicao(r.id);
+    const bX=document.createElement("button");
+    bX.className="btn-mini perigo"; bX.textContent="🗑️ Excluir";
+    bX.onclick=()=>excluirRegistro(r.id);
+    acoes.appendChild(bE); acoes.appendChild(bX);
+    d.appendChild(acoes);
+    el.appendChild(d);
+  });
+}
+
+/* ============================================================
+   EDITAR / EXCLUIR LANÇAMENTOS
+   ============================================================ */
+let idEdicao=null;
+function excluirRegistro(id){
+  const i=S.registros.findIndex(r=>r.id===id);
+  if(i<0) return;
+  const r=S.registros[i];
+  const rot=r.tipo==="Nota"?`nota ${String(r.valor).replace(".",",")}`:`"${String(r.valor).slice(0,50)}"`;
+  const avisoPlan=r.enviado?"\n\nA planilha também será atualizada automaticamente.":"";
+  if(!confirm(`Excluir ${r.criterio} (${rot}) de ${nomeCurto(r.estudante)}?${avisoPlan}`)) return;
+  if(r.enviado) S.exclusoes.push({id:r.id});
+  S.registros.splice(i,1);
+  salvar(); renderHistorico(); render();
+  if(document.getElementById("modalLanc").classList.contains("aberto")) renderUltimos();
+  toast("🗑️ Lançamento excluído"+(r.enviado?" — atualizando a planilha…":"."));
+  if(r.enviado) sincronizar(false);
+}
+function abrirEdicao(id){
+  const r=S.registros.find(x=>x.id===id);
+  if(!r) return;
+  idEdicao=id;
+  document.getElementById("subEditar").textContent=
+    `${r.estudante} — ${r.turma} · ${r.disciplina} · ${r.criterio}`;
+  const ehNota=r.tipo==="Nota";
+  document.getElementById("campoEditNota").style.display=ehNota?"block":"none";
+  document.getElementById("campoEditTexto").style.display=ehNota?"none":"block";
+  document.getElementById("campoEditObs").style.display=ehNota?"block":"none";
+  document.getElementById("editNota").value=ehNota?r.valor:"";
+  document.getElementById("editTexto").value=ehNota?"":r.valor;
+  document.getElementById("editObs").value=r.observacao||"";
+  abrirModal("modalEditar");
+}
+function salvarEdicao(){
+  const i=S.registros.findIndex(r=>r.id===idEdicao);
+  if(i<0){ fecharModal("modalEditar"); return; }
+  const r=S.registros[i];
+  const ehNota=r.tipo==="Nota";
+  let valor;
+  if(ehNota){
+    valor=parseFloat(String(document.getElementById("editNota").value).replace(",","."));
+    if(isNaN(valor)||valor<0||valor>10){ toast("Informe uma nota entre 0 e 10."); return; }
+  } else {
+    valor=document.getElementById("editTexto").value.trim();
+    if(!valor){ toast("Escreva o texto da observação."); return; }
+  }
+  const obs=ehNota?document.getElementById("editObs").value.trim():"";
+  if(r.enviado){
+    // já está na planilha: exclui o antigo e envia a versão corrigida
+    S.exclusoes.push({id:r.id});
+    S.registros[i]=Object.assign({}, r, {
+      id: Date.now()+"-"+Math.random().toString(36).slice(2,8),
+      dataHora: agora(), valor: valor, observacao: obs, enviado: false
+    });
+  } else {
+    r.valor=valor; r.observacao=obs;
+  }
+  salvar(); fecharModal("modalEditar"); renderHistorico(); render();
+  if(document.getElementById("modalLanc").classList.contains("aberto")) renderUltimos();
+  toast("✏️ Lançamento atualizado!");
+  sincronizar(false);
+}
+function exportarCSV(){
+  const cab=["Data/Hora","Disciplina","Turma","Estudante","Critério","Tipo","Valor/Nota","Comentário","Bimestre","Professor","Enviado"];
+  const linhas=S.registros.map(r=>[r.dataHora,r.disciplina,r.turma,r.estudante,r.criterio,r.tipo,r.valor,r.observacao,r.bimestre,r.professor,r.enviado?"sim":"não"]
+    .map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(";"));
+  const blob=new Blob(["﻿"+cab.join(";")+"\n"+linhas.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="lancamentos-dojo-da-turma.csv";
+  a.click();
+}
+
+/* ============================================================
+   CONFIGURAÇÕES
+   ============================================================ */
+function abrirConfig(){
+  document.getElementById("cfgUrl").value=S.config.url||"";
+  document.getElementById("cfgProfessor").value=S.config.professor||"";
+  document.getElementById("msgTeste").textContent="";
+  abrirModal("modalConfig");
+}
+function salvarConfig(){
+  S.config.url=document.getElementById("cfgUrl").value.trim();
+  S.config.professor=document.getElementById("cfgProfessor").value.trim();
+  salvar(); atualizarBadge();
+  toast("💾 Configurações salvas!");
+  sincronizar(false);
+}
+async function testarConexao(){
+  const url=document.getElementById("cfgUrl").value.trim();
+  const msg=document.getElementById("msgTeste");
+  if(!url){ msg.style.color="var(--vermelho)"; msg.textContent="Cole a URL do script primeiro."; return; }
+  msg.style.color="#8a86a3"; msg.textContent="Testando…";
+  try{
+    const r=await fetch(url+(url.indexOf("?")>=0?"&":"?")+"api=1"); const j=await r.json();
+    if(j.ok){ msg.style.color="var(--verde)"; msg.textContent="✅ Conectado! Planilha: "+(j.planilha||""); }
+    else throw 0;
+  }catch(e){ msg.style.color="var(--vermelho)"; msg.textContent="❌ Não conectou. Confira a URL e se a implantação está com acesso 'Qualquer pessoa'."; }
+}
+
+/* ============================================================
+   GERENCIAR ESTUDANTES
+   ============================================================ */
+function abrirGerenciar(){
+  document.getElementById("turmaGerenciar").textContent=S.turmaAtual+" · "+S.disciplinaAtual;
+  const el=document.getElementById("listaGerenciar");
+  el.innerHTML="";
+  alunosDe(S.turmaAtual).forEach(a=>{
+    const d=document.createElement("div");
+    d.innerHTML=`<span>${a}</span>`;
+    const b=document.createElement("button");
+    b.textContent="🗑️"; b.title="Ocultar do app";
+    b.onclick=()=>{
+      if(!confirm(`Ocultar ${nomeCurto(a)} do app? (a planilha não é alterada)`)) return;
+      const k=chaveTurma();
+      (S.removidos[k]=S.removidos[k]||[]).push(a);
+      salvar(); abrirGerenciar(); renderAlunos();
+    };
+    d.appendChild(b); el.appendChild(d);
+  });
+  document.getElementById("novoAluno").value="";
+  abrirModal("modalGerenciar");
+}
+function adicionarAluno(){
+  const nome=document.getElementById("novoAluno").value.trim().toUpperCase();
+  if(!nome) return;
+  const k=chaveTurma();
+  (S.extras[k]=S.extras[k]||[]).push(nome);
+  S.removidos[k]=(S.removidos[k]||[]).filter(x=>x!==nome);
+  salvar(); abrirGerenciar(); renderAlunos();
+  toast("➕ "+nomeCurto(nome)+" adicionado(a)!");
+}
+
+/* ============================================================
+   INICIALIZAÇÃO
+   ============================================================ */
+if(!DISCIPLINAS[S.disciplinaAtual]) S.disciplinaAtual="Projeto de Vida";
+if(!turmasAtuais()[S.turmaAtual]) S.turmaAtual=Object.keys(turmasAtuais())[0];
+render();
+sincronizar(false);
+
+/* ============================================================
+   PWA — registro do service worker (funciona offline;
+   a sincronização com a planilha continua exatamente igual)
+   ============================================================ */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
