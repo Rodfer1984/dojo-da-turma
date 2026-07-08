@@ -21,7 +21,7 @@
     --sombra:0 2px 10px rgba(40,20,90,.12);
   }
   *{box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',system-ui,sans-serif;}
-  body{background:var(--cinza); color:var(--texto); min-height:100vh;}
+  body{background:var(--cinza); color:var(--texto); min-height:100vh; overflow-x:hidden;}
 
   header{background:linear-gradient(135deg,var(--roxo),var(--roxo-escuro)); color:#fff; padding:14px 16px 10px; position:sticky; top:0; z-index:50; box-shadow:var(--sombra);}
   .topo{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
@@ -33,10 +33,10 @@
   .btn-icone{background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); color:#fff; border-radius:10px; padding:6px 11px; font-size:1rem; cursor:pointer;}
   .btn-icone:hover{background:rgba(255,255,255,.3);}
 
-  .disciplinas{display:flex; gap:8px; padding:12px 2px 0;}
+  .disciplinas{display:flex; gap:8px; padding:12px 2px 4px; overflow-x:auto; scrollbar-width:thin; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain;}
   .chip-disc{flex:0 0 auto; background:rgba(255,255,255,.12); border:1.5px solid rgba(255,255,255,.4); color:#fff; padding:8px 18px; border-radius:12px; cursor:pointer; font-weight:800; font-size:.92rem; transition:.15s;}
   .chip-disc.ativa{background:#fff; color:var(--roxo-escuro); border-color:#fff;}
-  .turmas{display:flex; gap:8px; overflow-x:auto; padding:10px 2px 4px; scrollbar-width:thin;}
+  .turmas{display:flex; gap:8px; overflow-x:auto; padding:10px 2px 4px; scrollbar-width:thin; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain;}
   .chip-turma{flex:0 0 auto; background:rgba(255,255,255,.15); border:1.5px solid rgba(255,255,255,.35); color:#fff; padding:7px 16px; border-radius:22px; cursor:pointer; font-weight:700; font-size:.9rem; transition:.15s;}
   .chip-turma.ativa{background:#fff; color:var(--roxo-escuro); border-color:#fff;}
 
@@ -210,7 +210,7 @@
   <div class="modal">
     <button class="fechar-x" onclick="fecharModal('modalGerenciar')">✕</button>
     <h2>👥 Estudantes — <span id="turmaGerenciar"></span></h2>
-    <div class="sub">Remover oculta o estudante apenas no app (a planilha não é alterada).</div>
+    <div class="sub">As alterações são replicadas na planilha automaticamente (excluir marca o estudante como removido, sem apagar as notas).</div>
     <div class="lista-gerenciar" id="listaGerenciar"></div>
     <div class="linha-2">
       <input id="novoAluno" placeholder="Nome do novo estudante">
@@ -421,7 +421,8 @@ let S = {
   extras:{},      // estudantes adicionados: chave "disciplina|turma"
   removidos:{},   // estudantes ocultados: chave "disciplina|turma"
   discExtras:{},  // disciplinas criadas no app: {nome:{criterios:[...]}}
-  turmasExtras:{} // turmas criadas no app: {disciplina:{turma:[alunos]}}
+  turmasExtras:{},// turmas criadas no app: {disciplina:{turma:[alunos]}}
+  estruturas:[]   // alterações estruturais aguardando envio para a planilha
 };
 try{
   const salvo = JSON.parse(localStorage.getItem("dojoTurmaV2"));
@@ -430,6 +431,15 @@ try{
 S.exclusoes = S.exclusoes || [];
 S.discExtras = S.discExtras || {};
 S.turmasExtras = S.turmasExtras || {};
+S.estruturas = S.estruturas || [];
+
+/* Agenda uma alteração estrutural (turma/disciplina/estudante) para
+   replicar na planilha — enviada junto com a sincronização automática. */
+function agendarEstrutura(op){
+  op.id = Date.now()+"-"+Math.random().toString(36).slice(2,8);
+  S.estruturas.push(op);
+  salvar(); atualizarBadge(); sincronizar(false);
+}
 S.config.bimestre = ""; // seletor de bimestre removido do app
 
 let modoSelecao=false, selecionados=new Set(), alunosAlvo=[], criterioSel=null, notaSel=null;
@@ -545,7 +555,7 @@ function renderAlunos(){
   });
 }
 function atualizarBadge(){
-  const pend=S.registros.filter(r=>!r.enviado).length + (S.exclusoes||[]).length;
+  const pend=S.registros.filter(r=>!r.enviado).length + (S.exclusoes||[]).length + (S.estruturas||[]).length;
   const b=document.getElementById("badgeSync");
   if(!S.config.url){ b.className="badge-sync pendente"; b.textContent=`⚙️ configurar planilha (${pend} no aparelho)`; }
   else if(pend>0){ b.className="badge-sync pendente"; b.textContent=`⏳ ${pend} pendente${pend>1?"s":""}`; }
@@ -720,8 +730,9 @@ async function sincronizar(manual){
   const url=S.config.url;
   const pendentes=S.registros.filter(r=>!r.enviado);
   const exclusoes=(S.exclusoes||[]).slice();
+  const estruturas=(S.estruturas||[]).slice();
   if(!url){ if(manual) toast("⚙️ Configure a URL do script primeiro (botão ⚙️)."); atualizarBadge(); return; }
-  if(pendentes.length===0 && exclusoes.length===0){ if(manual) toast("✅ Nada pendente — tudo já está na planilha."); return; }
+  if(pendentes.length===0 && exclusoes.length===0 && estruturas.length===0){ if(manual) toast("✅ Nada pendente — tudo já está na planilha."); return; }
   if(sincronizando) return;
   sincronizando=true;
   try{
@@ -733,18 +744,25 @@ async function sincronizar(manual){
     const resp=await fetch(url,{
       method:"POST",
       headers:{"Content-Type":"text/plain;charset=utf-8"}, // evita bloqueio CORS do Apps Script
-      body:JSON.stringify({registros:corpo, exclusoes:exclusoes})
+      body:JSON.stringify({registros:corpo, exclusoes:exclusoes, estruturas:estruturas})
     });
     const j=await resp.json();
     if(j && j.ok){
       pendentes.forEach(r=>r.enviado=true);
       const idsExcl=new Set(exclusoes.map(x=>x.id));
       S.exclusoes=(S.exclusoes||[]).filter(x=>!idsExcl.has(x.id));
+      let estruturasFeitas=0;
+      if(Array.isArray(j.estruturasOk)){
+        const ok=new Set(j.estruturasOk);
+        estruturasFeitas=j.estruturasOk.length;
+        S.estruturas=(S.estruturas||[]).filter(x=>!ok.has(x.id));
+      }
       salvar(); atualizarBadge(); renderAlunos();
       const partes=[];
       if(pendentes.length) partes.push(`${pendentes.length} lançamento${pendentes.length>1?"s":""}`);
       if(exclusoes.length) partes.push(`${exclusoes.length} ${exclusoes.length>1?"exclusões":"exclusão"}`);
-      toast(`📤 Planilha atualizada: ${partes.join(" e ")}!`);
+      if(estruturasFeitas) partes.push(`${estruturasFeitas} ${estruturasFeitas>1?"alterações":"alteração"} de turma/disciplina`);
+      if(partes.length) toast(`📤 Planilha atualizada: ${partes.join(", ")}!`);
     } else {
       throw new Error(j&&j.erro?j.erro:"resposta inválida");
     }
@@ -919,7 +937,7 @@ function abrirGerenciar(){
     const bX=document.createElement("button");
     bX.textContent="🗑️"; bX.title="Excluir da turma";
     bX.onclick=()=>{
-      if(!confirm(`Excluir ${nomeCurto(a)} da turma? (a planilha não é alterada)`)) return;
+      if(!confirm(`Excluir ${nomeCurto(a)} da turma? Na planilha o estudante será marcado como removido (as notas não são apagadas).`)) return;
       removerAluno(a);
     };
     ac.appendChild(bE); ac.appendChild(bX); d.appendChild(ac); el.appendChild(d);
@@ -940,6 +958,7 @@ function addAlunos(nomes){
     }
   });
   salvar(); abrirGerenciar(); renderAlunos();
+  agendarEstrutura({tipo:"addAlunos", disciplina:S.disciplinaAtual, turma:S.turmaAtual, alunos:nomes});
 }
 function adicionarAluno(){
   const nome=document.getElementById("novoAluno").value.trim().toUpperCase();
@@ -959,6 +978,7 @@ function removerAluno(a){
   if(lista){ const i=lista.indexOf(a); if(i>=0) lista.splice(i,1); }
   else (S.removidos[k]=S.removidos[k]||[]).push(a);
   salvar(); abrirGerenciar(); renderAlunos();
+  agendarEstrutura({tipo:"delAluno", disciplina:S.disciplinaAtual, turma:S.turmaAtual, estudante:a});
 }
 function editarAluno(antigo,novo){
   const lista=listaTurmaExtra(), k=chaveTurma();
@@ -968,14 +988,17 @@ function editarAluno(antigo,novo){
     (S.extras[k]=S.extras[k]||[]).push(novo);
   }
   salvar(); abrirGerenciar(); renderAlunos();
+  agendarEstrutura({tipo:"editAluno", disciplina:S.disciplinaAtual, turma:S.turmaAtual, antigo:antigo, novo:novo});
   toast("✏️ Nome atualizado!");
 }
 function excluirTurmaExtra(){
   if(!listaTurmaExtra()) return;
-  if(!confirm(`Excluir a turma ${S.turmaAtual}? (os lançamentos já enviados permanecem na planilha)`)) return;
-  delete S.turmasExtras[S.disciplinaAtual][S.turmaAtual];
+  if(!confirm(`Excluir a turma ${S.turmaAtual}? (na planilha, a aba será marcada como excluída — os dados não são apagados)`)) return;
+  const turma=S.turmaAtual, disc=S.disciplinaAtual;
+  delete S.turmasExtras[disc][turma];
   S.turmaAtual=null;
   salvar(); fecharModal("modalGerenciar"); render();
+  agendarEstrutura({tipo:"delTurma", disciplina:disc, turma:turma});
   toast("🗑️ Turma excluída.");
 }
 
@@ -1016,6 +1039,7 @@ function salvarNovaDisciplina(){
   S.discExtras[nome]={criterios:criterios};
   S.disciplinaAtual=nome; S.turmaAtual=null;
   salvar(); fecharModal("modalNovaDisc"); render();
+  agendarEstrutura({tipo:"novaDisciplina", disciplina:nome, criterios:criterios.map(c=>c.nome)});
   toast(`📚 Disciplina ${nome} criada!`);
   abrirNovaTurma();
 }
@@ -1033,10 +1057,12 @@ function renderNdExistentes(){
     l.innerHTML=`<span>📚 ${d}</span>`;
     const b=document.createElement("button"); b.className="btn-mini perigo"; b.textContent="🗑️ Excluir";
     b.onclick=()=>{
-      if(!confirm(`Excluir a disciplina ${d} e suas turmas criadas no app? (os lançamentos já enviados permanecem na planilha)`)) return;
+      if(!confirm(`Excluir a disciplina ${d} e suas turmas criadas no app? (na planilha, as abas serão marcadas como excluídas — os dados não são apagados)`)) return;
+      const turmasDaDisc=Object.keys(S.turmasExtras[d]||{});
       delete S.discExtras[d]; delete S.turmasExtras[d];
       if(S.disciplinaAtual===d){ S.disciplinaAtual=null; S.turmaAtual=null; }
       salvar(); renderNdExistentes(); render();
+      agendarEstrutura({tipo:"delDisciplina", disciplina:d, turmas:turmasDaDisc});
     };
     l.appendChild(b); el.appendChild(l);
   });
@@ -1057,6 +1083,8 @@ function salvarNovaTurma(){
   (S.turmasExtras[S.disciplinaAtual]=S.turmasExtras[S.disciplinaAtual]||{})[nome]=alunos;
   S.turmaAtual=nome;
   salvar(); fecharModal("modalNovaTurma"); render();
+  agendarEstrutura({tipo:"novaTurma", disciplina:S.disciplinaAtual, turma:nome,
+    alunos:alunos, criterios:discAtual().criterios.map(c=>c.nome)});
   toast(`🏫 Turma ${nome} criada com ${alunos.length} estudante(s)!`);
   if(!alunos.length) abrirGerenciar();
 }
